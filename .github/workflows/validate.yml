@@ -1,0 +1,40 @@
+name: Validate Firewall Configuration
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "firewall-configs/**"
+      - "ci/**"
+
+jobs:
+  validate:
+    name: Run validation gates (1–3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check-jsonschema
+        run: pip install check-jsonschema
+
+      - name: Install OPA
+        run: |
+          curl -L -o /usr/local/bin/opa \
+            https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+
+      - name: Run OPA policy tests
+        run: opa test ci/policies/ -v
+
+      - name: Run validation gates (1–3)
+        run: bash ci/scripts/validate-all.sh
+        env:
+          FIREPILOT_ENV: demo
