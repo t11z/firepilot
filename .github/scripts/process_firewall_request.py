@@ -1,13 +1,11 @@
 """FirePilot — GitHub Actions script for processing firewall change requests.
 
-Reads a GitHub Issue body, downloads any PDF attachments, calls the Claude API
-with the issue content and PDF documents, and posts Claude's response as an
-issue comment.
+Reads a GitHub Issue body, downloads any PDF attachments, invokes the
+client-side MCP agentic orchestrator (`ci/scripts/process-issue.py`) as a
+subprocess, and posts its output as an issue comment.
 
-When MCP_STRATA_URL and MCP_ITSM_URL are set, the Claude API call includes
-an mcp_servers parameter so that Claude can call live validation tools
-(list_security_zones, list_security_rules, etc.) against the running MCP
-servers during analysis.
+The orchestrator connects to mcp-strata-cloud-manager and mcp-itsm as local
+stdio subprocesses and runs the full Claude agentic tool-use loop in-process.
 
 Required environment variables:
     GITHUB_TOKEN       — GitHub Actions token for issue operations and attachment downloads
@@ -15,19 +13,13 @@ Required environment variables:
     ISSUE_NUMBER       — GitHub issue number (integer as string)
     ISSUE_BODY         — Full body text of the GitHub issue
     REPO               — Repository in "owner/repo" format
-
-Optional environment variables:
-    MCP_STRATA_URL     — SSE endpoint URL for mcp-strata-cloud-manager
-                         (e.g. http://localhost:8080/sse)
-    MCP_ITSM_URL       — SSE endpoint URL for mcp-itsm
-                         (e.g. http://localhost:8081/sse)
 """
 
 from __future__ import annotations
 
-import base64
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -38,13 +30,6 @@ import requests
 # Constants
 # ---------------------------------------------------------------------------
 
-CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
-CLAUDE_MODEL = "claude-sonnet-4-20250514"
-CLAUDE_MAX_TOKENS = 4096
-CLAUDE_ANTHROPIC_VERSION = "2023-06-01"
-# Beta header required for the mcp_servers parameter in the Messages API.
-CLAUDE_MCP_BETA = "mcp-client-2025-11-20"
-
 # GitHub attachment URL pattern: [filename.pdf](https://github.com/user-attachments/assets/...)
 PDF_ATTACHMENT_RE = re.compile(
     r'\[([^\]]+\.pdf)\]\((https://github\.com/user-attachments/assets/[^\)]+)\)',
@@ -54,7 +39,9 @@ PDF_ATTACHMENT_RE = re.compile(
 MAX_PDF_BYTES = 32 * 1024 * 1024  # 32 MB — Claude API document size limit
 
 GITHUB_API_BASE = "https://api.github.com"
-SYSTEM_PROMPT_PATH = Path("prompts/system-prompt.md")
+
+# Path to the client-side orchestrator, relative to the repository root
+PROCESS_ISSUE_SCRIPT = Path("ci/scripts/process-issue.py")
 
 
 # ---------------------------------------------------------------------------
@@ -142,11 +129,8 @@ def download_pdf(filename: str, url: str, github_token: str, tmp_dir: str) -> st
         return None
 
 
-def encode_pdf(file_path: str) -> str | None:
-    """Base64-encode a PDF file.
-
-    Returns None and prints a warning if the file exceeds MAX_PDF_BYTES.
-    """
+def is_pdf_within_size_limit(file_path: str) -> bool:
+    """Return True if the file is within the PDF size limit."""
     size = os.path.getsize(file_path)
     if size > MAX_PDF_BYTES:
         print(
@@ -154,125 +138,59 @@ def encode_pdf(file_path: str) -> str | None:
             f"(limit {MAX_PDF_BYTES}). Skipping.",
             file=sys.stderr,
         )
-        return None
-    with open(file_path, "rb") as fh:
-        return base64.b64encode(fh.read()).decode("ascii")
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
-# Claude API
+# Orchestrator invocation
 # ---------------------------------------------------------------------------
 
-def build_user_content(issue_body: str, pdf_documents: list[dict]) -> list[dict]:
-    """Construct the user message content blocks for the Claude API request."""
-    content: list[dict] = []
-
-    # Document blocks first (supporting PDFs), followed by the issue text
-    for doc in pdf_documents:
-        content.append(doc)
-
-    content.append({"type": "text", "text": issue_body})
-    return content
-
-
-def call_claude_api(
-    system_prompt: str,
+def invoke_orchestrator(
     issue_body: str,
-    pdf_documents: list[dict],
+    attachment_paths: list[str],
     anthropic_api_key: str,
-    mcp_strata_url: str | None = None,
-    mcp_itsm_url: str | None = None,
-) -> str:
-    """Call the Claude API and return the response text.
+) -> tuple[str | None, str | None]:
+    """Run the client-side MCP agentic orchestrator and return (response, error).
 
-    When mcp_strata_url and mcp_itsm_url are provided, the request includes
-    the mcp_servers parameter so Claude can call validation tools against the
-    running MCP servers during analysis.
+    The orchestrator connects to both MCP servers as stdio subprocesses,
+    calls Claude with the full agentic tool-use loop, and writes the final
+    text response to stdout.
 
-    Note: The Claude API mcp_servers parameter connects to the provided URLs
-    from Anthropic's infrastructure. For GitHub Actions workflows, the MCP
-    servers run on localhost and are referenced by their SSE endpoint URLs.
-
-    Raises requests.RequestException on network or HTTP errors.
+    Returns (response_text, None) on success or (None, error_message) on failure.
     """
-    payload: dict = {
-        "model": CLAUDE_MODEL,
-        "max_tokens": CLAUDE_MAX_TOKENS,
-        "system": system_prompt,
-        "messages": [
-            {
-                "role": "user",
-                "content": build_user_content(issue_body, pdf_documents),
-            }
-        ],
-    }
+    cmd = [sys.executable, str(PROCESS_ISSUE_SCRIPT), "--issue-body", issue_body]
+    for path in attachment_paths:
+        cmd.extend(["--attachment", path])
 
-    headers: dict = {
-        "x-api-key": anthropic_api_key,
-        "anthropic-version": CLAUDE_ANTHROPIC_VERSION,
-        "content-type": "application/json",
-    }
+    env = {**os.environ, "ANTHROPIC_API_KEY": anthropic_api_key}
 
-    if mcp_strata_url and mcp_itsm_url:
-        # Attach both MCP servers so Claude can call validation tools
-        # (list_security_zones, list_security_rules, list_addresses, etc.)
-        # during the analysis turn.  The mcp_servers parameter requires the
-        # mcp-client beta header.
-        payload["mcp_servers"] = [
-            {
-                "type": "url",
-                "url": mcp_strata_url,
-                "name": "mcp-strata-cloud-manager",
-            },
-            {
-                "type": "url",
-                "url": mcp_itsm_url,
-                "name": "mcp-itsm",
-            },
-        ]
-        # mcp_toolset entries in tools tell the API which server each toolset
-        # belongs to and whether all tools are enabled by default.
-        payload["tools"] = [
-            {
-                "type": "mcp_toolset",
-                "mcp_server_name": "mcp-strata-cloud-manager",
-                "default_config": {"enabled": True},
-            },
-            {
-                "type": "mcp_toolset",
-                "mcp_server_name": "mcp-itsm",
-                "default_config": {"enabled": True},
-            },
-        ]
-        headers["anthropic-beta"] = CLAUDE_MCP_BETA
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=300,  # 5-minute timeout for the full agentic loop
+        )
+    except subprocess.TimeoutExpired:
+        return None, "Analysis timed out after 300 seconds."
+    except OSError as exc:
+        return None, f"Failed to launch orchestrator: {exc}"
+
+    if result.returncode != 0:
+        # Log stderr for debugging; do not expose it in the issue comment
         print(
-            f"MCP servers attached: strata={mcp_strata_url}, itsm={mcp_itsm_url}",
-            flush=True,
+            f"Orchestrator exited with code {result.returncode}. stderr:\n{result.stderr}",
+            file=sys.stderr,
         )
-    else:
-        print("MCP servers not configured — running in analysis-only mode.", flush=True)
+        return None, f"Analysis script exited with code {result.returncode}."
 
-    response = requests.post(
-        CLAUDE_API_URL,
-        json=payload,
-        headers=headers,
-        timeout=180,  # Extended timeout to allow for MCP tool call round-trips
-    )
+    text = result.stdout.strip()
+    if not text:
+        return None, "The orchestrator produced no output."
 
-    if not response.ok:
-        # Do not log the response body — it may contain sensitive information
-        raise requests.HTTPError(
-            f"Claude API returned HTTP {response.status_code}",
-            response=response,
-        )
-
-    data = response.json()
-    texts = [
-        block.get("text", "")
-        for block in data.get("content", [])
-        if block.get("type") == "text"
-    ]
-    return "\n".join(texts).strip()
+    return text, None
 
 
 # ---------------------------------------------------------------------------
@@ -287,26 +205,13 @@ def main() -> None:
     issue_body = os.environ.get("ISSUE_BODY", "")
     repo = get_required_env("REPO")
 
-    # MCP server URLs are optional — set by the workflow when servers are running
-    mcp_strata_url = os.environ.get("MCP_STRATA_URL") or None
-    mcp_itsm_url = os.environ.get("MCP_ITSM_URL") or None
-
-    # Load system prompt from the versioned file in the repository
-    if not SYSTEM_PROMPT_PATH.exists():
-        print(
-            f"ERROR: System prompt not found at '{SYSTEM_PROMPT_PATH}'.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
-
     # --- Parse PDF attachments ---
     attachments = parse_pdf_attachments(issue_body)
     print(f"Found {len(attachments)} PDF attachment(s) in issue body.")
 
-    pdf_documents: list[dict] = []
     download_warnings: list[str] = []
     size_warnings: list[str] = []
+    attachment_paths: list[str] = []
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         for filename, url in attachments:
@@ -315,45 +220,24 @@ def main() -> None:
                 download_warnings.append(filename)
                 continue
 
-            encoded = encode_pdf(local_path)
-            if encoded is None:
+            if not is_pdf_within_size_limit(local_path):
                 size_warnings.append(filename)
                 continue
 
-            pdf_documents.append({
-                "type": "document",
-                "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": encoded,
-                },
-            })
+            attachment_paths.append(local_path)
 
         print(
-            f"Successfully encoded {len(pdf_documents)} PDF(s) for Claude API. "
+            f"Downloaded {len(attachment_paths)} PDF(s) for analysis. "
             f"Download failures: {len(download_warnings)}, "
             f"Size exceeded: {len(size_warnings)}."
         )
 
-        # --- Call Claude API ---
-        claude_response: str | None = None
-        claude_error: str | None = None
-
-        try:
-            claude_response = call_claude_api(
-                system_prompt=system_prompt,
-                issue_body=issue_body,
-                pdf_documents=pdf_documents,
-                anthropic_api_key=anthropic_api_key,
-                mcp_strata_url=mcp_strata_url,
-                mcp_itsm_url=mcp_itsm_url,
-            )
-        except requests.HTTPError as exc:
-            # Extract only the status code — do not include response body
-            status_code = exc.response.status_code if exc.response is not None else "unknown"
-            claude_error = f"Claude API call failed with HTTP status {status_code}."
-        except requests.RequestException as exc:
-            claude_error = f"Claude API call failed: {exc}"
+        # --- Invoke the client-side MCP orchestrator ---
+        claude_response, claude_error = invoke_orchestrator(
+            issue_body=issue_body,
+            attachment_paths=attachment_paths,
+            anthropic_api_key=anthropic_api_key,
+        )
 
     # --- Compose and post issue comment ---
     comment_parts: list[str] = []
@@ -373,7 +257,7 @@ def main() -> None:
     elif not claude_response:
         comment_parts.append(
             "## FirePilot Analysis — Incomplete\n\n"
-            "The analysis could not be completed: the Claude API returned an empty response.\n\n"
+            "The analysis could not be completed: the orchestrator returned an empty response.\n\n"
             "Please contact the FirePilot administrator."
         )
     else:
