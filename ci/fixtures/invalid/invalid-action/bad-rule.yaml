@@ -1,0 +1,31 @@
+# INVALID: rule file with an invalid action value
+#
+# Expected failure: JSON Schema 'enum' constraint on action field (Gate 1)
+# Violation: action is set to "permit" which is not a valid SCM API action.
+# Valid values per ADR-0004 and ADR-0007: allow, deny, drop, reset-both,
+# reset-client, reset-server.
+
+schema_version: 1
+name: "bad-rule"
+description: "Rule with invalid action value"
+tag:
+  - "firepilot-managed"
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+# INVALID: "permit" is not in the allowed action enum
+action: "permit"
+log_end: true

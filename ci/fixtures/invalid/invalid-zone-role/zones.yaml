@@ -1,0 +1,15 @@
+# INVALID: zones.yaml with a role value not in the controlled vocabulary.
+#
+# Expected failure: JSON Schema enum validation (Gate 1)
+# Violation: role "extranet" is not one of the eight allowed values defined
+#   in ci/schemas/zone-mapping.schema.json (ADR-0008).
+
+schema_version: 1
+zones:
+  external-partner:
+    # INVALID: "extranet" is not in the controlled role vocabulary
+    role: extranet
+    description: "External partner network"
+  trust:
+    role: internal
+    description: "Internal trusted corporate network"

@@ -1,0 +1,14 @@
+# zones.yaml for unknown-zone-reference fixture.
+#
+# "ghost-zone" is intentionally absent so the rule referencing it triggers
+# the zone_reference_valid OPA policy violation (ADR-0008).
+
+schema_version: 1
+zones:
+  web-zone:
+    role: web-frontend
+    description: "Web-facing frontend servers"
+  app-zone:
+    role: application
+    description: "Application tier servers"
+  # ghost-zone is deliberately not listed here

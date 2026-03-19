@@ -1,0 +1,14 @@
+# INVALID: zones.yaml with a zone entry missing the required description field.
+#
+# Expected failure: JSON Schema required property validation (Gate 1)
+# Violation: the "untrust" zone entry omits the required "description" field.
+#   Every zone entry must have both "role" and "description" (ADR-0008 Field Reference).
+
+schema_version: 1
+zones:
+  untrust:
+    # INVALID: "description" is required but absent
+    role: internet
+  trust:
+    role: internal
+    description: "Internal trusted corporate network"

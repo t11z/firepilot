@@ -1,0 +1,24 @@
+# VALID rule file — listed in manifest
+schema_version: 1
+name: "listed-rule"
+description: "A valid rule that is properly listed in the manifest"
+tag:
+  - "firepilot-managed"
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+log_end: true

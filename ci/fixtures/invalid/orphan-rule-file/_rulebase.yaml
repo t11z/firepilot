@@ -1,0 +1,13 @@
+# INVALID FIXTURE: orphan-rule-file
+#
+# Expected failure: OPA policy 'rule_files_in_manifest' (Gate 2)
+# Violation: orphan-rule.yaml exists in the directory but is NOT listed in
+# rule_order. This would cause the rule to be silently ignored during
+# deployment — CI/CD must block this inconsistency (ADR-0007 invariant 2).
+
+schema_version: 1
+folder: "shared"
+position: "pre"
+rule_order:
+  # Only listed-rule is declared; orphan-rule is intentionally absent
+  - listed-rule

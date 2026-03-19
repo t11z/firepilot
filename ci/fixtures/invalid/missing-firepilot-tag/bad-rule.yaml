@@ -1,0 +1,34 @@
+# INVALID FIXTURE: missing-firepilot-tag/bad-rule.yaml
+#
+# Expected failure: OPA policy 'firepilot_managed_tag_required' (Gate 2)
+# Violation: tag array is present but does not contain "firepilot-managed".
+# The "firepilot-managed" tag is required by ADR-0007 for all FirePilot-managed
+# rules — it is the scope boundary for drift detection and deployment pipelines.
+
+schema_version: 1
+name: "bad-rule"
+description: "Rule missing the mandatory firepilot-managed tag"
+tag:
+  # Only a team tag present — missing "firepilot-managed"
+  - "team:network-ops"
+
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+negate_source: false
+destination:
+  - "any"
+negate_destination: false
+source_user:
+  - "any"
+application:
+  - "any"
+category:
+  - "any"
+service:
+  - "application-default"
+action: "allow"
+log_end: true

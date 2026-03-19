@@ -1,0 +1,12 @@
+# INVALID FIXTURE: name-mismatch
+#
+# Expected failure: OPA policy 'name_matches_filename' (Gate 2)
+# Violation: some-rule.yaml contains name: "other-rule" — the name field
+# does not match the filename. The name field must equal the filename
+# (without .yaml) for SCM consistency and drift detection (ADR-0007).
+
+schema_version: 1
+folder: "shared"
+position: "pre"
+rule_order:
+  - some-rule

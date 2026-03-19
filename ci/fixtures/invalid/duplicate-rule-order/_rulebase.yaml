@@ -1,0 +1,18 @@
+# INVALID FIXTURE: duplicate-rule-order
+#
+# Expected failure (Gate 1): JSON Schema 'uniqueItems: true' on rule_order
+# Expected failure (Gate 2): OPA policy 'no_duplicate_rule_order'
+# Violation: "some-rule" appears twice in rule_order. Duplicate entries would
+# cause the same rule to be deployed twice in sequence, creating undefined
+# firewall behaviour in the first-match evaluation model (ADR-0007).
+#
+# Note: check-jsonschema may reject this file at Gate 1 due to uniqueItems.
+# OPA also enforces this as defense-in-depth at Gate 2.
+
+schema_version: 1
+folder: "shared"
+position: "pre"
+rule_order:
+  - some-rule
+  # some-rule appears again — duplicate entry
+  - some-rule

@@ -1,0 +1,30 @@
+# INVALID: name field does not match filename
+#
+# Expected failure: OPA policy 'name_matches_filename' (Gate 2)
+# Violation: filename is "some-rule.yaml" but the name field says "other-rule".
+# The name field must equal the filename without extension (ADR-0007).
+
+schema_version: 1
+# name must equal "some-rule" (the filename without .yaml) but says "other-rule"
+name: "other-rule"
+description: "Rule with name field that does not match its filename"
+tag:
+  - "firepilot-managed"
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+log_end: true

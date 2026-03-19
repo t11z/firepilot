@@ -186,7 +186,7 @@ Concrete example:
 
 ```
 firewall-configs/
-└── Shared/
+└── shared/
     ├── pre/
     │   ├── _rulebase.yaml
     │   ├── allow-web-to-app.yaml
@@ -221,7 +221,7 @@ count toward the character limit.
 
 ```yaml
 schema_version: 1
-folder: "Shared"
+folder: "shared"
 position: "pre"
 rule_order:
   - allow-web-to-app

@@ -1,0 +1,10 @@
+# zones.yaml for overly-permissive-internet fixture.
+
+schema_version: 1
+zones:
+  untrust:
+    role: internet
+    description: "External internet-facing zone"
+  dmz:
+    role: dmz
+    description: "Demilitarized zone for public-facing services"

@@ -1,0 +1,14 @@
+# INVALID FIXTURE: forbidden-fields
+#
+# Expected failure: JSON Schema 'additionalProperties: false' (Gate 1)
+#                   OPA policy 'no_forbidden_fields' (Gate 2)
+# Violation: bad-rule.yaml contains 'id', 'folder', and 'position' fields,
+# which are forbidden in rule files (ADR-0007). These fields are derived from
+# directory structure (folder, position) or assigned by SCM (id) and must
+# never appear in the YAML configuration.
+
+schema_version: 1
+folder: "shared"
+position: "pre"
+rule_order:
+  - bad-rule

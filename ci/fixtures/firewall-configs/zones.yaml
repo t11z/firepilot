@@ -1,0 +1,34 @@
+# Valid zone topology mapping fixture for FirePilot CI/CD tests (ADR-0008).
+#
+# Includes all zones from the ADR-0008 reference example plus untrust-zone,
+# which is referenced by firewall-configs/shared/pre/deny-direct-db-access.yaml.
+
+schema_version: 1
+zones:
+  untrust:
+    role: internet
+    description: "External internet-facing zone"
+  untrust-zone:
+    role: internet
+    description: "External internet-facing zone (untrust-zone alias)"
+  trust:
+    role: internal
+    description: "Internal trusted corporate network"
+  dmz:
+    role: dmz
+    description: "Demilitarized zone for public-facing services"
+  web-zone:
+    role: web-frontend
+    description: "Web-facing frontend servers"
+  app-zone:
+    role: application
+    description: "Application tier servers"
+  db-zone:
+    role: database
+    description: "Database servers"
+  clients:
+    role: endpoints
+    description: "End-user devices and workstations"
+  mgmt:
+    role: management
+    description: "Out-of-band management network"

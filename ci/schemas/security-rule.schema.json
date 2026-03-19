@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "firepilot/security-rule",
+  "title": "FirePilot Security Rule",
+  "description": "JSON Schema for {name}.yaml security rule files (ADR-0007). Field names are taken verbatim from the Palo Alto Networks SCM API (ADR-0004) — no aliases, no abstraction. Fields 'id', 'folder', and 'position' are intentionally absent: they are forbidden in rule files because they are derived from the directory structure and assigned by SCM, respectively. 'additionalProperties: false' enforces this constraint.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "name",
+    "from",
+    "to",
+    "source",
+    "source_user",
+    "destination",
+    "service",
+    "application",
+    "category",
+    "action",
+    "tag"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Must be 1. FirePilot metadata — not sent to SCM API."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 63,
+      "pattern": "^[ a-zA-Z\\d._-]+$",
+      "description": "Rule name. Must match the filename (without .yaml extension) and the SCM rule name. Characters: a-zA-Z0-9, space, hyphen, underscore, period. Max 63 chars."
+    },
+    "from": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Source security zone(s). At least one zone required."
+    },
+    "to": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Destination security zone(s). At least one zone required."
+    },
+    "source": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Source address(es) or address object names. Use ['any'] if unscoped."
+    },
+    "source_user": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Source user(s) or user group(s). Use ['any'] if unscoped."
+    },
+    "destination": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Destination address(es) or address object names. Use ['any'] if unscoped."
+    },
+    "service": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Service(s) being matched. Use ['application-default'] for application-defined ports."
+    },
+    "application": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Application(s) being matched. Use ['any'] for all applications."
+    },
+    "category": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "URL categories. Use ['any'] if category filtering is not required."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["allow", "deny", "drop", "reset-both", "reset-client", "reset-server"],
+      "description": "Rule action. Values taken verbatim from the SCM API enum."
+    },
+    "tag": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Tag(s) applied to the rule. Must include 'firepilot-managed' (enforced by OPA Gate 2). Additional tags are permitted for application or team attribution."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "description": "Human-readable rule description. Optional."
+    },
+    "disabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the rule is disabled in the rulebase. Defaults to false."
+    },
+    "negate_source": {
+      "type": "boolean",
+      "default": false,
+      "description": "Negate the source address match. Defaults to false."
+    },
+    "negate_destination": {
+      "type": "boolean",
+      "default": false,
+      "description": "Negate the destination address match. Defaults to false."
+    },
+    "source_hip": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Source Host Integrity Profile(s). Optional."
+    },
+    "destination_hip": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Destination Host Integrity Profile(s). Optional."
+    },
+    "schedule": {
+      "type": ["string", "null"],
+      "description": "Schedule name restricting when the rule is active. Optional."
+    },
+    "profile_setting": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Security profile group name(s) to apply."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Security profile configuration. Optional."
+    },
+    "log_setting": {
+      "type": ["string", "null"],
+      "description": "External log forwarding profile name. Optional."
+    },
+    "log_start": {
+      "type": "boolean",
+      "description": "Log at session start. Optional, defaults to false."
+    },
+    "log_end": {
+      "type": "boolean",
+      "description": "Log at session end. Optional, defaults to true."
+    },
+    "policy_type": {
+      "type": "string",
+      "description": "Policy type. Defaults to 'Security'. Omit unless non-default."
+    },
+    "tenant_restrictions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tenant restriction(s). Optional."
+    }
+  }
+}

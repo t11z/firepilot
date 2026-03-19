@@ -1,0 +1,26 @@
+# Valid rule file for position-mismatch fixture.
+# The schema violation is in _rulebase.yaml (position field mismatch),
+# not in this rule file.
+schema_version: 1
+name: "some-rule"
+description: "Valid rule in a position-mismatch fixture directory"
+tag:
+  - "firepilot-managed"
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+log_end: true

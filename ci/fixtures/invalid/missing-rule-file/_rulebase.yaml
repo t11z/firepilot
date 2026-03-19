@@ -1,0 +1,14 @@
+# INVALID FIXTURE: missing-rule-file
+#
+# Expected failure: OPA policy 'manifest_entries_have_files' (Gate 2)
+# Violation: _rulebase.yaml references "nonexistent-rule" in rule_order but
+# there is no nonexistent-rule.yaml file in this directory. This would cause
+# the deployment pipeline to fail attempting to read a nonexistent file
+# (ADR-0007 invariant 1).
+
+schema_version: 1
+folder: "shared"
+position: "pre"
+rule_order:
+  # nonexistent-rule has no corresponding YAML file in this directory
+  - nonexistent-rule
