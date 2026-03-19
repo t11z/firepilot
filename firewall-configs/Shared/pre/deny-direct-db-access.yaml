@@ -1,0 +1,31 @@
+schema_version: 1
+
+name: "deny-direct-db-access"
+description: "Block all direct access from untrusted zone to database zone"
+tag:
+  - "firepilot-managed"
+
+from:
+  - "untrust-zone"
+to:
+  - "db-zone"
+source:
+  - "any"
+negate_source: false
+destination:
+  - "db-subnet-10.3.0.0-24"
+negate_destination: false
+
+source_user:
+  - "any"
+application:
+  - "any"
+category:
+  - "any"
+
+service:
+  - "any"
+action: "deny"
+
+log_start: false
+log_end: true

@@ -1,0 +1,5 @@
+schema_version: 1
+folder: "Shared"
+position: "post"
+rule_order:
+  - default-deny-all

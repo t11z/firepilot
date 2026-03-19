@@ -1,0 +1,31 @@
+schema_version: 1
+
+name: "default-deny-all"
+description: "Default deny rule - block all traffic not explicitly permitted by pre-rules"
+tag:
+  - "firepilot-managed"
+
+from:
+  - "any"
+to:
+  - "any"
+source:
+  - "any"
+negate_source: false
+destination:
+  - "any"
+negate_destination: false
+
+source_user:
+  - "any"
+application:
+  - "any"
+category:
+  - "any"
+
+service:
+  - "any"
+action: "deny"
+
+log_start: false
+log_end: true
