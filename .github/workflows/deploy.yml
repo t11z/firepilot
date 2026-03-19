@@ -1,0 +1,69 @@
+name: Deploy Firewall Configuration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "firewall-configs/**"
+      - "ci/**"
+
+jobs:
+  validate:
+    name: Re-validate before deployment (defense-in-depth)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check-jsonschema
+        run: pip install check-jsonschema
+
+      - name: Install OPA
+        run: |
+          curl -L -o /usr/local/bin/opa \
+            https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+
+      - name: Run OPA policy tests
+        run: opa test ci/policies/ -v
+
+      - name: Run validation gates (1–3)
+        run: bash ci/scripts/validate-all.sh
+        env:
+          FIREPILOT_ENV: demo
+
+  deploy:
+    name: Deploy to firewall (Gate 4)
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run deployment (Gate 4)
+        run: bash ci/scripts/gate4-deploy.sh
+        env:
+          FIREPILOT_ENV: demo
+          # Live mode secrets — injected from repository secrets when MCP servers are integrated (ADR-0006):
+          # SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
+          # SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
+          # SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
+          # ITSM_GITHUB_TOKEN: ${{ secrets.ITSM_GITHUB_TOKEN }}
+          # ITSM_GITHUB_REPO: ${{ secrets.ITSM_GITHUB_REPO }}
+
+      - name: Tag successful deployment
+        if: success()
+        run: |
+          DEPLOY_TAG="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::8}"
+          git tag "$DEPLOY_TAG"
+          git push origin "$DEPLOY_TAG"
