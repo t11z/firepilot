@@ -1,0 +1,80 @@
+name: Firewall Change Request
+description: >
+  Submit a firewall rule change request for review and processing by FirePilot.
+  FirePilot will analyse your request against existing policy and propose a
+  validated configuration. Supporting documentation (architecture diagrams,
+  compliance certificates, application security assessments) can be attached
+  as PDF files — drag and drop them into the text areas below.
+  Note: attached files must not exceed 32 MB each.
+title: "[FCR] "
+labels:
+  - "firepilot:pending"
+body:
+  - type: input
+    id: application_name
+    attributes:
+      label: Application Name
+      description: Name of the application or service requiring the firewall rule.
+      placeholder: e.g. Customer Portal API
+    validations:
+      required: true
+
+  - type: input
+    id: business_unit
+    attributes:
+      label: Business Unit
+      description: Requesting team or department.
+      placeholder: e.g. Platform Engineering
+    validations:
+      required: true
+
+  - type: input
+    id: source_zone
+    attributes:
+      label: Source Zone / Network
+      description: Origin zone or network CIDR of the traffic (e.g. zone name or IP range).
+      placeholder: e.g. dmz / 10.0.1.0/24
+    validations:
+      required: true
+
+  - type: input
+    id: destination_zone
+    attributes:
+      label: Destination Zone / Network
+      description: Target zone or network CIDR for the traffic.
+      placeholder: e.g. internal / 10.0.2.0/24
+    validations:
+      required: true
+
+  - type: input
+    id: ports_services
+    attributes:
+      label: Required Ports / Services
+      description: Ports or application-layer services to be permitted.
+      placeholder: e.g. TCP/443 (HTTPS), TCP/8080
+    validations:
+      required: true
+
+  - type: textarea
+    id: business_justification
+    attributes:
+      label: Business Justification
+      description: Explain why this firewall change is required and what business need it addresses.
+      placeholder: Describe the business need, compliance requirement, or operational reason for this change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: supporting_documentation
+    attributes:
+      label: Supporting Documentation
+      description: >
+        Attach supporting PDF files (architecture diagrams, compliance
+        certificates, application security assessments) by dragging and
+        dropping them into this field or clicking the attachment icon.
+        Each file must not exceed 32 MB.
+        GitHub will render uploaded files as links in the format
+        [filename.pdf](URL) — leave those links in place after uploading.
+      placeholder: Drag and drop PDF files here, or paste attachment links.
+    validations:
+      required: false
