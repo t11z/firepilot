@@ -7,6 +7,11 @@
 # by GitHub Actions) for all GitHub API operations: reading issue content,
 # posting comments, updating labels, and downloading attachments.
 # No additional token configuration is required for GITHUB_TOKEN.
+#
+# MCP servers (mcp-strata-cloud-manager, mcp-itsm) are installed directly
+# from the repository checkout and started as background SSE processes on
+# localhost before the Claude API call.  No Docker images or external
+# registry are required.
 
 name: Process Firewall Change Request
 
@@ -35,7 +40,96 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install requests
+          pip install ./mcp-servers/mcp-strata-cloud-manager
+          pip install ./mcp-servers/mcp-itsm
+
+      - name: Start MCP servers (SSE mode)
+        run: |
+          FIREPILOT_ENV=demo MCP_TRANSPORT=sse MCP_PORT=8080 \
+            python -m mcp_strata_cloud_manager.server > /tmp/mcp-strata.log 2>&1 &
+
+          FIREPILOT_ENV=demo MCP_TRANSPORT=sse MCP_PORT=8081 \
+            python -m mcp_itsm.server > /tmp/mcp-itsm.log 2>&1 &
+
+      - name: Wait for MCP servers to be ready
+        id: mcp_health
+        run: |
+          python3 - <<'EOF'
+          import socket
+          import sys
+          import time
+
+          servers = [
+              ("mcp-strata-cloud-manager", 8080),
+              ("mcp-itsm", 8081),
+          ]
+          timeout_secs = 30
+          deadline = time.monotonic() + timeout_secs
+
+          for name, port in servers:
+              while True:
+                  try:
+                      s = socket.create_connection(("localhost", port), timeout=1)
+                      s.close()
+                      print(f"[OK] {name}:{port} ready")
+                      break
+                  except OSError:
+                      if time.monotonic() > deadline:
+                          print(
+                              f"[FAIL] {name}:{port} did not become ready within"
+                              f" {timeout_secs}s",
+                              file=sys.stderr,
+                          )
+                          print("--- mcp-strata log ---", file=sys.stderr)
+                          try:
+                              print(open("/tmp/mcp-strata.log").read(), file=sys.stderr)
+                          except OSError:
+                              pass
+                          print("--- mcp-itsm log ---", file=sys.stderr)
+                          try:
+                              print(open("/tmp/mcp-itsm.log").read(), file=sys.stderr)
+                          except OSError:
+                              pass
+                          sys.exit(1)
+                      time.sleep(1)
+          EOF
+
+      - name: Post MCP startup failure comment
+        if: failure() && steps.mcp_health.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'EOF'
+          import os
+          import requests
+
+          token = os.environ["GITHUB_TOKEN"]
+          issue = os.environ["ISSUE_NUMBER"]
+          repo = os.environ["REPO"]
+
+          body = (
+              "## FirePilot Analysis — MCP Server Startup Failure\n\n"
+              "The MCP validation servers (`mcp-strata-cloud-manager` and `mcp-itsm`) "
+              "failed to start within the 30-second timeout. The firewall change request "
+              "cannot be analysed without them.\n\n"
+              "Please check the workflow run logs for details and contact the FirePilot "
+              "administrator."
+          )
+          requests.post(
+              f"https://api.github.com/repos/{repo}/issues/{issue}/comments",
+              json={"body": body},
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+              timeout=30,
+          ).raise_for_status()
+          EOF
 
       - name: Process request and call Claude API
         env:
@@ -44,4 +138,6 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REPO: ${{ github.repository }}
+          MCP_STRATA_URL: http://localhost:8080/sse
+          MCP_ITSM_URL: http://localhost:8081/sse
         run: python .github/scripts/process_firewall_request.py

@@ -4,12 +4,23 @@ Reads a GitHub Issue body, downloads any PDF attachments, calls the Claude API
 with the issue content and PDF documents, and posts Claude's response as an
 issue comment.
 
+When MCP_STRATA_URL and MCP_ITSM_URL are set, the Claude API call includes
+an mcp_servers parameter so that Claude can call live validation tools
+(list_security_zones, list_security_rules, etc.) against the running MCP
+servers during analysis.
+
 Required environment variables:
     GITHUB_TOKEN       — GitHub Actions token for issue operations and attachment downloads
     ANTHROPIC_API_KEY  — Claude API authentication key
     ISSUE_NUMBER       — GitHub issue number (integer as string)
     ISSUE_BODY         — Full body text of the GitHub issue
     REPO               — Repository in "owner/repo" format
+
+Optional environment variables:
+    MCP_STRATA_URL     — SSE endpoint URL for mcp-strata-cloud-manager
+                         (e.g. http://localhost:8080/sse)
+    MCP_ITSM_URL       — SSE endpoint URL for mcp-itsm
+                         (e.g. http://localhost:8081/sse)
 """
 
 from __future__ import annotations
@@ -31,6 +42,8 @@ CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-sonnet-4-20250514"
 CLAUDE_MAX_TOKENS = 4096
 CLAUDE_ANTHROPIC_VERSION = "2023-06-01"
+# Beta header required for the mcp_servers parameter in the Messages API.
+CLAUDE_MCP_BETA = "mcp-client-2025-11-20"
 
 # GitHub attachment URL pattern: [filename.pdf](https://github.com/user-attachments/assets/...)
 PDF_ATTACHMENT_RE = re.compile(
@@ -167,12 +180,22 @@ def call_claude_api(
     issue_body: str,
     pdf_documents: list[dict],
     anthropic_api_key: str,
+    mcp_strata_url: str | None = None,
+    mcp_itsm_url: str | None = None,
 ) -> str:
     """Call the Claude API and return the response text.
 
+    When mcp_strata_url and mcp_itsm_url are provided, the request includes
+    the mcp_servers parameter so Claude can call validation tools against the
+    running MCP servers during analysis.
+
+    Note: The Claude API mcp_servers parameter connects to the provided URLs
+    from Anthropic's infrastructure. For GitHub Actions workflows, the MCP
+    servers run on localhost and are referenced by their SSE endpoint URLs.
+
     Raises requests.RequestException on network or HTTP errors.
     """
-    payload = {
+    payload: dict = {
         "model": CLAUDE_MODEL,
         "max_tokens": CLAUDE_MAX_TOKENS,
         "system": system_prompt,
@@ -184,15 +207,56 @@ def call_claude_api(
         ],
     }
 
+    headers: dict = {
+        "x-api-key": anthropic_api_key,
+        "anthropic-version": CLAUDE_ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+
+    if mcp_strata_url and mcp_itsm_url:
+        # Attach both MCP servers so Claude can call validation tools
+        # (list_security_zones, list_security_rules, list_addresses, etc.)
+        # during the analysis turn.  The mcp_servers parameter requires the
+        # mcp-client beta header.
+        payload["mcp_servers"] = [
+            {
+                "type": "url",
+                "url": mcp_strata_url,
+                "name": "mcp-strata-cloud-manager",
+            },
+            {
+                "type": "url",
+                "url": mcp_itsm_url,
+                "name": "mcp-itsm",
+            },
+        ]
+        # mcp_toolset entries in tools tell the API which server each toolset
+        # belongs to and whether all tools are enabled by default.
+        payload["tools"] = [
+            {
+                "type": "mcp_toolset",
+                "mcp_server_name": "mcp-strata-cloud-manager",
+                "default_config": {"enabled": True},
+            },
+            {
+                "type": "mcp_toolset",
+                "mcp_server_name": "mcp-itsm",
+                "default_config": {"enabled": True},
+            },
+        ]
+        headers["anthropic-beta"] = CLAUDE_MCP_BETA
+        print(
+            f"MCP servers attached: strata={mcp_strata_url}, itsm={mcp_itsm_url}",
+            flush=True,
+        )
+    else:
+        print("MCP servers not configured — running in analysis-only mode.", flush=True)
+
     response = requests.post(
         CLAUDE_API_URL,
         json=payload,
-        headers={
-            "x-api-key": anthropic_api_key,
-            "anthropic-version": CLAUDE_ANTHROPIC_VERSION,
-            "content-type": "application/json",
-        },
-        timeout=120,
+        headers=headers,
+        timeout=180,  # Extended timeout to allow for MCP tool call round-trips
     )
 
     if not response.ok:
@@ -203,7 +267,11 @@ def call_claude_api(
         )
 
     data = response.json()
-    texts = [block.get("text", "") for block in data.get("content", []) if block.get("type") == "text"]
+    texts = [
+        block.get("text", "")
+        for block in data.get("content", [])
+        if block.get("type") == "text"
+    ]
     return "\n".join(texts).strip()
 
 
@@ -218,6 +286,10 @@ def main() -> None:
     issue_number = int(get_required_env("ISSUE_NUMBER"))
     issue_body = os.environ.get("ISSUE_BODY", "")
     repo = get_required_env("REPO")
+
+    # MCP server URLs are optional — set by the workflow when servers are running
+    mcp_strata_url = os.environ.get("MCP_STRATA_URL") or None
+    mcp_itsm_url = os.environ.get("MCP_ITSM_URL") or None
 
     # Load system prompt from the versioned file in the repository
     if not SYSTEM_PROMPT_PATH.exists():
@@ -273,6 +345,8 @@ def main() -> None:
                 issue_body=issue_body,
                 pdf_documents=pdf_documents,
                 anthropic_api_key=anthropic_api_key,
+                mcp_strata_url=mcp_strata_url,
+                mcp_itsm_url=mcp_itsm_url,
             )
         except requests.HTTPError as exc:
             # Extract only the status code — do not include response body
