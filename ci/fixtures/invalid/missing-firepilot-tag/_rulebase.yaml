@@ -1,0 +1,10 @@
+# INVALID FIXTURE: missing-firepilot-tag
+#
+# Expected failure: OPA policy 'firepilot_managed_tag_required' (Gate 2)
+# Violation: bad-rule.yaml does not include "firepilot-managed" in its tag array.
+
+schema_version: 1
+folder: "Shared"
+position: "pre"
+rule_order:
+  - bad-rule

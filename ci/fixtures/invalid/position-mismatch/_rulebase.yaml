@@ -1,0 +1,16 @@
+# INVALID FIXTURE: position-mismatch
+#
+# Expected failure: OPA policy 'position_matches_directory' (Gate 2)
+# Violation: position field says "pre" but the pipeline derives the actual
+# position from the directory name. A mismatch between manifest.position and
+# directory.position is a hard failure (ADR-0007 invariant 5).
+#
+# When evaluated by build-opa-input.py from a directory named "post",
+# the directory.position will be "post" while manifest.position is "pre".
+
+schema_version: 1
+folder: "Shared"
+# position says "pre" but the directory name would be "post" in the test scenario
+position: "pre"
+rule_order:
+  - some-rule

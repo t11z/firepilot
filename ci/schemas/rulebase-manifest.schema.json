@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "firepilot/rulebase-manifest",
+  "title": "FirePilot Rulebase Manifest",
+  "description": "JSON Schema for _rulebase.yaml files (ADR-0007). Validates the ordering manifest for a folder/position combination. Every entry in rule_order must have a corresponding {name}.yaml file in the same directory — this bidirectional consistency is enforced by OPA (Gate 2), not this schema.",
+  "type": "object",
+  "required": ["schema_version", "folder", "position", "rule_order"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Must be 1 for this revision of the FirePilot configuration schema."
+    },
+    "folder": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-zA-Z\\d\\-_\\. ]+$",
+      "description": "SCM folder name. Must match the parent directory name exactly. OPA enforces this structural invariant (Gate 2)."
+    },
+    "position": {
+      "type": "string",
+      "enum": ["pre", "post"],
+      "description": "Position in the rulebase: 'pre' (before default rules) or 'post' (after default rules). Must match the containing directory name. OPA enforces this structural invariant (Gate 2)."
+    },
+    "rule_order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "minItems": 0,
+      "description": "Ordered list of rule names (without .yaml extension). Each entry must correspond to a {name}.yaml file in the same directory. No duplicates permitted. Ordering determines firewall rule evaluation sequence (first-match model). Bidirectional consistency with actual files is enforced by OPA (Gate 2)."
+    }
+  }
+}

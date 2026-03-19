@@ -1,0 +1,12 @@
+# INVALID FIXTURE: invalid-action
+#
+# Expected failure: JSON Schema 'enum' on action field (Gate 1)
+# Violation: bad-rule.yaml contains action: "permit" which is not a valid
+# SCM API action value. Valid values are: allow, deny, drop, reset-both,
+# reset-client, reset-server (ADR-0004, ADR-0007).
+
+schema_version: 1
+folder: "Shared"
+position: "pre"
+rule_order:
+  - bad-rule

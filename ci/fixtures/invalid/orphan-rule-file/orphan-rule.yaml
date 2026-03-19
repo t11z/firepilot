@@ -1,0 +1,29 @@
+# INVALID: orphan rule file — exists on disk but not listed in _rulebase.yaml
+#
+# Expected failure: OPA policy 'rule_files_in_manifest' (Gate 2)
+# Violation: this file exists in the directory but "orphan-rule" is absent
+# from rule_order in _rulebase.yaml.
+
+schema_version: 1
+name: "orphan-rule"
+description: "Orphan rule — exists as a file but is not in the manifest"
+tag:
+  - "firepilot-managed"
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+log_end: true

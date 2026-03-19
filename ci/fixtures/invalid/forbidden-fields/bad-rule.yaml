@@ -1,0 +1,44 @@
+# INVALID: rule file containing forbidden fields id, folder, position
+#
+# Expected failure: JSON Schema 'additionalProperties: false' (Gate 1)
+#                   OPA policy 'no_forbidden_fields' (Gate 2)
+# Violation: 'id', 'folder', and 'position' are forbidden in rule YAML files.
+#   - 'id': UUID assigned by SCM at creation time — not operator-controlled
+#   - 'folder': derived from the parent directory name in the file path
+#   - 'position': derived from the directory name (pre or post)
+# These fields appearing in a rule file typically indicate the file was
+# incorrectly generated from an SCM API response (ADR-0007).
+
+schema_version: 1
+name: "bad-rule"
+description: "Rule incorrectly containing forbidden SCM API fields"
+tag:
+  - "firepilot-managed"
+
+# FORBIDDEN: 'id' is assigned by SCM, never authored in rule files
+id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+# FORBIDDEN: 'folder' is derived from directory structure, not authored in rule files
+folder: "Shared"
+
+# FORBIDDEN: 'position' is derived from directory structure, not authored in rule files
+position: "pre"
+
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+log_end: true
