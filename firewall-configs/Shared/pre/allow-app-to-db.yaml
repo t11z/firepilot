@@ -1,0 +1,36 @@
+schema_version: 1
+
+name: "allow-app-to-db"
+description: "Permit MySQL traffic from application zone to database zone"
+tag:
+  - "firepilot-managed"
+
+from:
+  - "app-zone"
+to:
+  - "db-zone"
+source:
+  - "app-subnet-10.2.0.0-24"
+negate_source: false
+destination:
+  - "db-subnet-10.3.0.0-24"
+negate_destination: false
+
+source_user:
+  - "any"
+application:
+  - "mysql"
+category:
+  - "any"
+
+service:
+  - "application-default"
+action: "allow"
+
+profile_setting:
+  group:
+    - "best-practice"
+
+log_setting: "default-log-profile"
+log_start: false
+log_end: true

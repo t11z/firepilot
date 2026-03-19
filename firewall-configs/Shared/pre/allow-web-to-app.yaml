@@ -1,0 +1,37 @@
+schema_version: 1
+
+name: "allow-web-to-app"
+description: "Permit HTTPS traffic from web zone to application zone for customer portal"
+tag:
+  - "firepilot-managed"
+
+from:
+  - "web-zone"
+to:
+  - "app-zone"
+source:
+  - "web-subnet-10.1.0.0-24"
+negate_source: false
+destination:
+  - "app-subnet-10.2.0.0-24"
+negate_destination: false
+
+source_user:
+  - "any"
+application:
+  - "ssl"
+  - "web-browsing"
+category:
+  - "any"
+
+service:
+  - "application-default"
+action: "allow"
+
+profile_setting:
+  group:
+    - "best-practice"
+
+log_setting: "default-log-profile"
+log_start: false
+log_end: true
