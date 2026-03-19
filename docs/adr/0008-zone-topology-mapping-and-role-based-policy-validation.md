@@ -4,7 +4,7 @@
 |---------------|-----------------------------------------------------------------------|
 | ID            | ADR-0008                                                              |
 | Title         | Zone Topology Mapping and Role-Based Policy Validation                |
-| Status        | **Draft**                                                             |
+| Status        | **Approved**                                                          |
 | Deciders      | Thomas Sprock                                                         |
 | Date          | 2026-03-19                                                            |
 | Supersedes    | —                                                                     |
