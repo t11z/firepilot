@@ -10,7 +10,7 @@
 # OPA also enforces this as defense-in-depth at Gate 2.
 
 schema_version: 1
-folder: "Shared"
+folder: "shared"
 position: "pre"
 rule_order:
   - some-rule

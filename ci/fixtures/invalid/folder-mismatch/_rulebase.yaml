@@ -1,18 +1,18 @@
 # INVALID FIXTURE: folder-mismatch
 #
 # Expected failure: OPA policy 'folder_matches_directory' (Gate 2)
-# Violation: folder field says "Shared" but this manifest is located in a
+# Violation: folder field says "shared" but this manifest is located in a
 # directory where the pipeline would report the actual folder name differs.
 # In CI, the pipeline reads the folder from the actual filesystem path and
 # compares it against the manifest — a mismatch is a hard failure (ADR-0007
 # invariant 4). This fixture simulates a manifest copied to the wrong folder.
 #
-# When evaluated by build-opa-input.py from a directory named "Production",
-# the directory.folder will be "Production" while manifest.folder is "Shared".
+# When evaluated by build-opa-input.py from a directory named "production",
+# the directory.folder will be "production" while manifest.folder is "shared".
 
 schema_version: 1
-# folder says "Shared" but the directory is named differently in the test
-folder: "Shared"
+# folder says "shared" but the directory is named differently in the test
+folder: "shared"
 position: "pre"
 rule_order:
   - some-rule

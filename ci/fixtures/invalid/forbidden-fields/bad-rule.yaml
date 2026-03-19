@@ -19,7 +19,7 @@ tag:
 id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
 # FORBIDDEN: 'folder' is derived from directory structure, not authored in rule files
-folder: "Shared"
+folder: "shared"
 
 # FORBIDDEN: 'position' is derived from directory structure, not authored in rule files
 position: "pre"

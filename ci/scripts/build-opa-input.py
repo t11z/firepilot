@@ -15,20 +15,20 @@ Output:
     JSON printed to stdout suitable for piping to `opa eval -i /dev/stdin`.
 
 Examples:
-    # Valid fixture — folder/position derived from path (Shared/pre)
-    python ci/scripts/build-opa-input.py firewall-configs/Shared/pre/ \\
+    # Valid fixture — folder/position derived from path (shared/pre)
+    python ci/scripts/build-opa-input.py firewall-configs/shared/pre/ \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
     # Invalid fixture — override folder/position to isolate the intended violation
     python ci/scripts/build-opa-input.py ci/fixtures/invalid/missing-firepilot-tag/ \\
-        --folder Shared --position pre \\
+        --folder shared --position pre \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
-    # folder-mismatch fixture — override position only, let folder mismatch trigger
+    # folder-mismatch fixture — override with a different folder name to trigger mismatch
     python ci/scripts/build-opa-input.py ci/fixtures/invalid/folder-mismatch/ \\
-        --folder Production --position pre \\
+        --folder production --position pre \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
@@ -99,7 +99,7 @@ def build_opa_input(
     unless overrides are provided.
 
     Args:
-        directory: Path to the folder/position directory (e.g. Shared/pre/).
+        directory: Path to the folder/position directory (e.g. shared/pre/).
         folder_override: If provided, use this as directory.folder instead of
             deriving it from the parent directory name. Useful for invalid
             fixture testing where the fixture path doesn't match the intended

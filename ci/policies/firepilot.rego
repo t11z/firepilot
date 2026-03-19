@@ -11,7 +11,7 @@
 # {
 #   "manifest": {
 #     "schema_version": 1,
-#     "folder": "Shared",
+#     "folder": "shared",
 #     "position": "pre",
 #     "rule_order": ["allow-web-to-app", "allow-app-to-db"]
 #   },

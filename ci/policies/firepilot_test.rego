@@ -49,7 +49,7 @@ test_valid_config_no_deny if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["allow-web-to-app", "allow-app-to-db"],
         },
@@ -92,7 +92,7 @@ test_valid_config_no_deny if {
                 "log_end": true,
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     count(msgs) == 0
 }
@@ -107,7 +107,7 @@ test_missing_firepilot_tag if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["bad-rule"],
         },
@@ -128,7 +128,7 @@ test_missing_firepilot_tag if {
                 "tag": ["team:network-ops"],
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Rule 'bad-rule' is missing required tag 'firepilot-managed'"]
 }
@@ -143,7 +143,7 @@ test_orphan_rule_file if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             # rule_order only lists listed-rule; orphan-rule is intentionally absent
             "rule_order": ["listed-rule"],
@@ -153,7 +153,7 @@ test_orphan_rule_file if {
             # orphan-rule exists as a file but is not in rule_order
             "orphan-rule": _valid_rule("orphan-rule"),
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Rule file 'orphan-rule.yaml' exists but is not listed in _rulebase.yaml rule_order"]
 }
@@ -168,7 +168,7 @@ test_missing_rule_file if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             # nonexistent-rule is in rule_order but has no corresponding file
             "rule_order": ["existing-rule", "nonexistent-rule"],
@@ -177,7 +177,7 @@ test_missing_rule_file if {
             # only existing-rule has a file; nonexistent-rule does not
             "existing-rule": _valid_rule("existing-rule"),
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Manifest references rule 'nonexistent-rule' but no corresponding YAML file exists"]
 }
@@ -192,7 +192,7 @@ test_name_mismatch if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["some-rule"],
         },
@@ -213,7 +213,7 @@ test_name_mismatch if {
                 "tag": ["firepilot-managed"],
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Rule file 'some-rule.yaml' has name field 'other-rule' which does not match the filename"]
 }
@@ -228,19 +228,19 @@ test_folder_mismatch if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            # manifest says folder is "Shared"
-            "folder": "Shared",
+            # manifest says folder is "shared" but directory will say "production"
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["some-rule"],
         },
         "rule_files": {"some-rule": _valid_rule("some-rule")},
         "directory": {
-            # but the actual directory says folder is "Production"
-            "folder": "Production",
+            # but the actual directory says folder is "production"
+            "folder": "production",
             "position": "pre",
         },
     }
-    msgs["Manifest folder 'Shared' does not match directory folder 'Production'"]
+    msgs["Manifest folder 'shared' does not match directory folder 'production'"]
 }
 
 # ---------------------------------------------------------------------------
@@ -253,14 +253,14 @@ test_position_mismatch if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             # manifest says position is "pre"
             "position": "pre",
             "rule_order": ["some-rule"],
         },
         "rule_files": {"some-rule": _valid_rule("some-rule")},
         "directory": {
-            "folder": "Shared",
+            "folder": "shared",
             # but the actual directory says position is "post"
             "position": "post",
         },
@@ -278,7 +278,7 @@ test_forbidden_field_id if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["bad-rule"],
         },
@@ -300,7 +300,7 @@ test_forbidden_field_id if {
                 "tag": ["firepilot-managed"],
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Rule file 'bad-rule.yaml' contains forbidden field 'id'"]
 }
@@ -315,7 +315,7 @@ test_forbidden_field_folder if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["bad-rule"],
         },
@@ -324,7 +324,7 @@ test_forbidden_field_folder if {
                 "schema_version": 1,
                 "name": "bad-rule",
                 # 'folder' is forbidden — derived from directory structure
-                "folder": "Shared",
+                "folder": "shared",
                 "from": ["web-zone"],
                 "to": ["app-zone"],
                 "source": ["any"],
@@ -337,7 +337,7 @@ test_forbidden_field_folder if {
                 "tag": ["firepilot-managed"],
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Rule file 'bad-rule.yaml' contains forbidden field 'folder'"]
 }
@@ -352,7 +352,7 @@ test_forbidden_field_position if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             "rule_order": ["bad-rule"],
         },
@@ -374,7 +374,7 @@ test_forbidden_field_position if {
                 "tag": ["firepilot-managed"],
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Rule file 'bad-rule.yaml' contains forbidden field 'position'"]
 }
@@ -390,7 +390,7 @@ test_duplicate_rule_order if {
     msgs := deny with input as {
         "manifest": {
             "schema_version": 1,
-            "folder": "Shared",
+            "folder": "shared",
             "position": "pre",
             # allow-web-to-app appears twice — duplicate
             "rule_order": ["allow-web-to-app", "allow-app-to-db", "allow-web-to-app"],
@@ -427,7 +427,7 @@ test_duplicate_rule_order if {
                 "log_end": true,
             },
         },
-        "directory": {"folder": "Shared", "position": "pre"},
+        "directory": {"folder": "shared", "position": "pre"},
     }
     msgs["Manifest rule_order contains duplicate entries"]
 }

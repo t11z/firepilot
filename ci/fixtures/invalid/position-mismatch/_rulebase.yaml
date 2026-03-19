@@ -9,7 +9,7 @@
 # the directory.position will be "post" while manifest.position is "pre".
 
 schema_version: 1
-folder: "Shared"
+folder: "shared"
 # position says "pre" but the directory name would be "post" in the test scenario
 position: "pre"
 rule_order:

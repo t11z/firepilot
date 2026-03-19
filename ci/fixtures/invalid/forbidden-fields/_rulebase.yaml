@@ -8,7 +8,7 @@
 # never appear in the YAML configuration.
 
 schema_version: 1
-folder: "Shared"
+folder: "shared"
 position: "pre"
 rule_order:
   - bad-rule

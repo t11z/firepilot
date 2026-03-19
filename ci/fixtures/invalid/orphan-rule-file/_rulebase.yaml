@@ -6,7 +6,7 @@
 # deployment — CI/CD must block this inconsistency (ADR-0007 invariant 2).
 
 schema_version: 1
-folder: "Shared"
+folder: "shared"
 position: "pre"
 rule_order:
   # Only listed-rule is declared; orphan-rule is intentionally absent
