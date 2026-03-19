@@ -1,0 +1,7 @@
+# _rulebase.yaml for overly-permissive-internet fixture.
+
+schema_version: 1
+folder: "shared"
+position: "pre"
+rule_order:
+  - bad-rule

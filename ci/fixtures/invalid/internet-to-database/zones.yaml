@@ -1,0 +1,10 @@
+# zones.yaml for internet-to-database fixture.
+
+schema_version: 1
+zones:
+  untrust:
+    role: internet
+    description: "External internet-facing zone"
+  db-zone:
+    role: database
+    description: "Database servers"

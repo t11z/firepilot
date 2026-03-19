@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://firepilot/schemas/zone-mapping.schema.json",
+  "title": "FirePilot Zone Topology Mapping",
+  "description": "Validates firewall-configs/zones.yaml — maps SCM zone names to architectural roles (ADR-0008).",
+  "type": "object",
+  "required": ["schema_version", "zones"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "description": "Schema version. Must be 1.",
+      "type": "integer",
+      "const": 1
+    },
+    "zones": {
+      "description": "Map of SCM zone name to zone metadata. At least one zone must be defined.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "description": "Zone metadata object.",
+        "type": "object",
+        "required": ["role", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "description": "Architectural role from the controlled vocabulary (ADR-0008).",
+            "type": "string",
+            "enum": [
+              "internet",
+              "internal",
+              "dmz",
+              "database",
+              "application",
+              "web-frontend",
+              "endpoints",
+              "management"
+            ]
+          },
+          "description": {
+            "description": "Human-readable description of the zone's function.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

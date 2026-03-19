@@ -431,3 +431,441 @@ test_duplicate_rule_order if {
     }
     msgs["Manifest rule_order contains duplicate entries"]
 }
+
+# ===========================================================================
+# Zone Topology Tests (ADR-0008)
+#
+# All zone topology tests supply input.zone_mapping inline to activate the
+# four topology-aware policies added in Prompt 1.1.
+# ===========================================================================
+
+# Shared inline zone_mapping used across topology tests.
+# Includes the minimal set of zones needed to exercise each policy.
+_zone_mapping := {
+    "untrust":  {"role": "internet",     "description": "External internet-facing zone"},
+    "trust":    {"role": "internal",     "description": "Internal trusted corporate network"},
+    "dmz":      {"role": "dmz",          "description": "DMZ"},
+    "web-zone": {"role": "web-frontend", "description": "Web-facing frontend servers"},
+    "app-zone": {"role": "application",  "description": "Application tier servers"},
+    "db-zone":  {"role": "database",     "description": "Database servers"},
+    "clients":  {"role": "endpoints",    "description": "End-user devices"},
+    "mgmt":     {"role": "management",   "description": "Out-of-band management network"},
+}
+
+# ---------------------------------------------------------------------------
+# test_valid_config_with_zones_no_deny
+#
+# A fully valid configuration with zone_mapping present must produce zero
+# deny messages. Verifies that the topology policies do not fire spuriously
+# on a compliant config.
+# ---------------------------------------------------------------------------
+test_valid_config_with_zones_no_deny if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["allow-web-to-app"],
+        },
+        "rule_files": {
+            "allow-web-to-app": {
+                "schema_version": 1,
+                "name": "allow-web-to-app",
+                "from": ["web-zone"],
+                "to": ["app-zone"],
+                "source": ["10.1.0.0/24"],
+                "source_user": ["any"],
+                "destination": ["10.2.0.0/24"],
+                "service": ["application-default"],
+                "application": ["ssl"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    count(msgs) == 0
+}
+
+# ---------------------------------------------------------------------------
+# test_zone_reference_valid_unknown_source_zone
+#
+# A rule referencing a zone in 'from' that is not in zone_mapping must
+# produce a deny message naming the rule and the unknown zone.
+# ---------------------------------------------------------------------------
+test_zone_reference_valid_unknown_source_zone if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["bad-rule"],
+        },
+        "rule_files": {
+            "bad-rule": {
+                "schema_version": 1,
+                "name": "bad-rule",
+                "from": ["ghost-zone"],
+                "to": ["app-zone"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    msgs["Rule 'bad-rule' references unknown source zone 'ghost-zone'"]
+}
+
+# ---------------------------------------------------------------------------
+# test_zone_reference_valid_unknown_dest_zone
+#
+# A rule referencing a zone in 'to' that is not in zone_mapping must
+# produce a deny message naming the rule and the unknown zone.
+# ---------------------------------------------------------------------------
+test_zone_reference_valid_unknown_dest_zone if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["bad-rule"],
+        },
+        "rule_files": {
+            "bad-rule": {
+                "schema_version": 1,
+                "name": "bad-rule",
+                "from": ["web-zone"],
+                "to": ["phantom-zone"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    msgs["Rule 'bad-rule' references unknown destination zone 'phantom-zone'"]
+}
+
+# ---------------------------------------------------------------------------
+# test_zone_reference_valid_any_exempt
+#
+# The literal value "any" in from or to must NOT produce a zone reference
+# deny message — "any" is a valid wildcard and is not a zone name.
+# ---------------------------------------------------------------------------
+test_zone_reference_valid_any_exempt if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["allow-any-zones"],
+        },
+        "rule_files": {
+            "allow-any-zones": {
+                "schema_version": 1,
+                "name": "allow-any-zones",
+                "from": ["any"],
+                "to": ["any"],
+                "source": ["10.0.0.1"],
+                "source_user": ["any"],
+                "destination": ["10.0.0.2"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    # "any" in from/to must not trigger zone_reference_valid deny
+    not msgs["Rule 'allow-any-zones' references unknown source zone 'any'"]
+    not msgs["Rule 'allow-any-zones' references unknown destination zone 'any'"]
+}
+
+# ---------------------------------------------------------------------------
+# test_no_internet_to_database
+#
+# An allow rule from a zone with role "internet" to a zone with role
+# "database" must produce a deny message.
+# ---------------------------------------------------------------------------
+test_no_internet_to_database if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["bad-rule"],
+        },
+        "rule_files": {
+            "bad-rule": {
+                "schema_version": 1,
+                "name": "bad-rule",
+                "from": ["untrust"],
+                "to": ["db-zone"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    msgs["Rule 'bad-rule' permits direct traffic from internet zone to database zone"]
+}
+
+# ---------------------------------------------------------------------------
+# test_no_internet_to_database_deny_action_allowed
+#
+# A deny rule from internet to database must NOT trigger the policy —
+# the constraint applies only to allow rules.
+# ---------------------------------------------------------------------------
+test_no_internet_to_database_deny_action_allowed if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["deny-rule"],
+        },
+        "rule_files": {
+            "deny-rule": {
+                "schema_version": 1,
+                "name": "deny-rule",
+                "from": ["untrust"],
+                "to": ["db-zone"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                # deny action — must NOT trigger no_internet_to_database
+                "action": "deny",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    not msgs["Rule 'deny-rule' permits direct traffic from internet zone to database zone"]
+}
+
+# ---------------------------------------------------------------------------
+# test_no_internet_to_management
+#
+# An allow rule from a zone with role "internet" to a zone with role
+# "management" must produce a deny message.
+# ---------------------------------------------------------------------------
+test_no_internet_to_management if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["bad-rule"],
+        },
+        "rule_files": {
+            "bad-rule": {
+                "schema_version": 1,
+                "name": "bad-rule",
+                "from": ["untrust"],
+                "to": ["mgmt"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    msgs["Rule 'bad-rule' permits direct traffic from internet zone to management zone"]
+}
+
+# ---------------------------------------------------------------------------
+# test_no_internet_to_management_deny_action_allowed
+#
+# A deny rule from internet to management must NOT trigger the policy.
+# ---------------------------------------------------------------------------
+test_no_internet_to_management_deny_action_allowed if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["deny-rule"],
+        },
+        "rule_files": {
+            "deny-rule": {
+                "schema_version": 1,
+                "name": "deny-rule",
+                "from": ["untrust"],
+                "to": ["mgmt"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                # deny action — must NOT trigger no_internet_to_management
+                "action": "deny",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    not msgs["Rule 'deny-rule' permits direct traffic from internet zone to management zone"]
+}
+
+# ---------------------------------------------------------------------------
+# test_no_overly_permissive_internet_rule
+#
+# An allow rule with an internet source zone combined with source "any" and
+# destination "any" must produce a deny message.
+# ---------------------------------------------------------------------------
+test_no_overly_permissive_internet_rule if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["bad-rule"],
+        },
+        "rule_files": {
+            "bad-rule": {
+                "schema_version": 1,
+                "name": "bad-rule",
+                "from": ["untrust"],
+                "to": ["dmz"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    msgs["Rule 'bad-rule' is overly permissive: internet source zone with source 'any' and destination 'any'"]
+}
+
+# ---------------------------------------------------------------------------
+# test_no_overly_permissive_internet_rule_specific_source_ok
+#
+# An allow rule with an internet source zone but a specific (non-"any") source
+# address must NOT trigger the overly permissive policy — only the combination
+# of source "any" AND destination "any" is forbidden.
+# ---------------------------------------------------------------------------
+test_no_overly_permissive_internet_rule_specific_source_ok if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["allow-specific"],
+        },
+        "rule_files": {
+            "allow-specific": {
+                "schema_version": 1,
+                "name": "allow-specific",
+                "from": ["untrust"],
+                "to": ["dmz"],
+                # specific source — must NOT trigger no_overly_permissive_internet_rule
+                "source": ["203.0.113.0/24"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        "directory": {"folder": "shared", "position": "pre"},
+        "zone_mapping": _zone_mapping,
+    }
+    not msgs["Rule 'allow-specific' is overly permissive: internet source zone with source 'any' and destination 'any'"]
+}
+
+# ---------------------------------------------------------------------------
+# test_topology_policies_absent_without_zone_mapping
+#
+# When input.zone_mapping is absent (build-opa-input.py called without
+# --zones), none of the topology policies must fire — preserving backward
+# compatibility with rule directories validated before zones.yaml existed.
+# ---------------------------------------------------------------------------
+test_topology_policies_absent_without_zone_mapping if {
+    msgs := deny with input as {
+        "manifest": {
+            "schema_version": 1,
+            "folder": "shared",
+            "position": "pre",
+            "rule_order": ["allow-untrust-to-db"],
+        },
+        "rule_files": {
+            "allow-untrust-to-db": {
+                "schema_version": 1,
+                "name": "allow-untrust-to-db",
+                # internet-to-database pattern — but zone_mapping is absent
+                "from": ["untrust"],
+                "to": ["db-zone"],
+                "source": ["any"],
+                "source_user": ["any"],
+                "destination": ["any"],
+                "service": ["application-default"],
+                "application": ["any"],
+                "category": ["any"],
+                "action": "allow",
+                "tag": ["firepilot-managed"],
+                "log_end": true,
+            },
+        },
+        # zone_mapping deliberately absent — no topology policies should fire
+        "directory": {"folder": "shared", "position": "pre"},
+    }
+    # no topology-related deny messages when zone_mapping is absent
+    not msgs["Rule 'allow-untrust-to-db' permits direct traffic from internet zone to database zone"]
+    not msgs["Rule 'allow-untrust-to-db' references unknown source zone 'untrust'"]
+    not msgs["Rule 'allow-untrust-to-db' references unknown destination zone 'db-zone'"]
+}

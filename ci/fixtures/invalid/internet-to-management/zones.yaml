@@ -1,0 +1,10 @@
+# zones.yaml for internet-to-management fixture.
+
+schema_version: 1
+zones:
+  untrust:
+    role: internet
+    description: "External internet-facing zone"
+  mgmt:
+    role: management
+    description: "Out-of-band management network"

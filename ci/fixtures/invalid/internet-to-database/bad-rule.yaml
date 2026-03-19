@@ -1,0 +1,30 @@
+# INVALID: allow rule permitting direct traffic from internet zone to database zone.
+#
+# Expected failure: OPA policy 'no_internet_to_database' (Gate 2)
+# Violation: action is "allow", source zone "untrust" has role "internet",
+#   destination zone "db-zone" has role "database" (ADR-0008).
+
+schema_version: 1
+name: "bad-rule"
+description: "Permit traffic directly from internet to database — forbidden"
+from:
+  - "untrust"
+to:
+  # INVALID: direct internet-to-database allow rule
+  - "db-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+tag:
+  - "firepilot-managed"
+log_end: true

@@ -1,0 +1,31 @@
+# INVALID: allow rule from internet zone with source "any" and destination "any".
+#
+# Expected failure: OPA policy 'no_overly_permissive_internet_rule' (Gate 2)
+# Violation: action is "allow", source zone "untrust" has role "internet",
+#   source is ["any"], and destination is ["any"] — permits all internet traffic
+#   to all destinations (ADR-0008).
+
+schema_version: 1
+name: "bad-rule"
+description: "Permit all internet traffic to all destinations — forbidden"
+from:
+  - "untrust"
+to:
+  - "dmz"
+# INVALID: source "any" combined with destination "any" from an internet zone
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+tag:
+  - "firepilot-managed"
+log_end: true

@@ -1,0 +1,30 @@
+# INVALID: rule referencing a zone not registered in zones.yaml.
+#
+# Expected failure: OPA policy 'zone_reference_valid' (Gate 2)
+# Violation: "ghost-zone" appears in the 'from' field but has no entry in zones.yaml.
+#   Every zone referenced in from or to must exist in the zone mapping (ADR-0008).
+
+schema_version: 1
+name: "bad-rule"
+description: "Rule referencing an unregistered zone"
+from:
+  # INVALID: ghost-zone is not in zones.yaml
+  - "ghost-zone"
+to:
+  - "app-zone"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+tag:
+  - "firepilot-managed"
+log_end: true

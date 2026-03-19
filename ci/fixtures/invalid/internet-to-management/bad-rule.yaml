@@ -1,0 +1,30 @@
+# INVALID: allow rule permitting direct traffic from internet zone to management zone.
+#
+# Expected failure: OPA policy 'no_internet_to_management' (Gate 2)
+# Violation: action is "allow", source zone "untrust" has role "internet",
+#   destination zone "mgmt" has role "management" (ADR-0008).
+
+schema_version: 1
+name: "bad-rule"
+description: "Permit traffic directly from internet to management — forbidden"
+from:
+  - "untrust"
+to:
+  # INVALID: direct internet-to-management allow rule
+  - "mgmt"
+source:
+  - "any"
+source_user:
+  - "any"
+destination:
+  - "any"
+service:
+  - "application-default"
+application:
+  - "any"
+category:
+  - "any"
+action: "allow"
+tag:
+  - "firepilot-managed"
+log_end: true

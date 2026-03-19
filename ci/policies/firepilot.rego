@@ -186,3 +186,117 @@ deny[msg] if {
     count(rule_order) != count({entry | entry := rule_order[_]})
     msg := "Manifest rule_order contains duplicate entries"
 }
+
+# ===========================================================================
+# Zone Topology Policies (ADR-0008)
+#
+# All policies below are conditional on input.zone_mapping being present.
+# When build-opa-input.py is invoked without --zones, zone_mapping is absent
+# and none of these policies fire — preserving backward compatibility with
+# rule directories validated before zones.yaml was introduced.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Helper: zone_role
+#
+# Returns the architectural role string for a zone name by looking it up in
+# the zone mapping. Undefined (fails) if the zone name is not in zone_mapping,
+# which prevents topology policies from producing spurious deny messages for
+# zones that failed zone_reference_valid.
+# ---------------------------------------------------------------------------
+zone_role(zone_name) := input.zone_mapping[zone_name].role
+
+# ---------------------------------------------------------------------------
+# Policy: zone_reference_valid
+#
+# Every zone referenced in a rule file's from or to field must exist as a
+# key in input.zone_mapping. The literal value "any" is exempt. This catches
+# typos and references to zones not yet registered in zones.yaml before the
+# configuration reaches the dry-run gate (ADR-0008).
+# ---------------------------------------------------------------------------
+deny[msg] if {
+    input.zone_mapping
+    some filename
+    rule := input.rule_files[filename]
+    zone := rule.from[_]
+    zone != "any"
+    not input.zone_mapping[zone]
+    msg := sprintf("Rule '%s' references unknown source zone '%s'", [filename, zone])
+}
+
+deny[msg] if {
+    input.zone_mapping
+    some filename
+    rule := input.rule_files[filename]
+    zone := rule.to[_]
+    zone != "any"
+    not input.zone_mapping[zone]
+    msg := sprintf("Rule '%s' references unknown destination zone '%s'", [filename, zone])
+}
+
+# ---------------------------------------------------------------------------
+# Policy: no_internet_to_database
+#
+# No allow rule may have a source zone with role "internet" and a destination
+# zone with role "database". Direct internet-to-database traffic bypasses all
+# intermediate tiers and violates network segmentation principles (ADR-0008).
+# ---------------------------------------------------------------------------
+deny[msg] if {
+    input.zone_mapping
+    some filename
+    rule := input.rule_files[filename]
+    rule.action == "allow"
+    src_zone := rule.from[_]
+    zone_role(src_zone) == "internet"
+    dst_zone := rule.to[_]
+    zone_role(dst_zone) == "database"
+    msg := sprintf(
+        "Rule '%s' permits direct traffic from internet zone to database zone",
+        [filename],
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Policy: no_internet_to_management
+#
+# No allow rule may have a source zone with role "internet" and a destination
+# zone with role "management". Exposing management networks directly to the
+# internet is a critical security boundary violation (ADR-0008).
+# ---------------------------------------------------------------------------
+deny[msg] if {
+    input.zone_mapping
+    some filename
+    rule := input.rule_files[filename]
+    rule.action == "allow"
+    src_zone := rule.from[_]
+    zone_role(src_zone) == "internet"
+    dst_zone := rule.to[_]
+    zone_role(dst_zone) == "management"
+    msg := sprintf(
+        "Rule '%s' permits direct traffic from internet zone to management zone",
+        [filename],
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Policy: no_overly_permissive_internet_rule
+#
+# No allow rule may combine a source zone with role "internet" with both
+# source: ["any"] and destination: ["any"]. This pattern permits all internet
+# traffic to all destinations — the broadest possible allow rule from an
+# untrusted zone (ADR-0008).
+# ---------------------------------------------------------------------------
+deny[msg] if {
+    input.zone_mapping
+    some filename
+    rule := input.rule_files[filename]
+    rule.action == "allow"
+    src_zone := rule.from[_]
+    zone_role(src_zone) == "internet"
+    "any" in rule.source
+    "any" in rule.destination
+    msg := sprintf(
+        "Rule '%s' is overly permissive: internet source zone with source 'any' and destination 'any'",
+        [filename],
+    )
+}
