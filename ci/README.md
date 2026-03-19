@@ -1,3 +1,18 @@
+## Quick start — local validation
+
+```bash
+# Check that required tools are installed
+make check-deps
+
+# Run the full validation pipeline (Gates 1–3)
+make validate
+
+# Run OPA policy tests only
+make test-policies
+```
+
+---
+
 # FirePilot CI Pipeline
 
 Reference: [ADR-0003 — CI/CD Pipeline Design and Policy Validation Toolchain](../docs/adr/0003-cicd-pipeline-design-and-policy-validation-toolchain.md)
