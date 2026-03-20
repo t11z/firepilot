@@ -167,6 +167,49 @@ Every significant design choice is documented as an Architecture Decision Record
 
 ---
 
+## 🛠️ Development Setup
+
+### Prerequisites
+
+- Python 3.12+
+- `opa` (OpenPolicy Agent) — [install guide](https://www.openpolicyagent.org/docs/latest/#1-download-opa)
+- `check-jsonschema` — `pip install check-jsonschema`
+- Docker + Docker Compose (optional, for demo targets)
+
+Run `make check-deps` to verify all required tools are available.
+
+### Pre-commit Hooks
+
+Pre-commit hooks enforce credential leak prevention (ADR-0006) and code
+hygiene. Install once after cloning:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+After installation, hooks run automatically on every `git commit`. To run
+them manually against all files:
+
+```bash
+pre-commit run --all-files
+```
+
+The `block-env-files` hook will prevent any `*.env` file from being committed.
+Copy `.env.example` files to `.env` and fill in your credentials — these files
+are gitignored and will never be committed.
+
+### Running Validation
+
+```bash
+make lint        # Python linting via ruff
+make test        # Python unit tests (MCP servers)
+make validate    # Full CI Gates 1–3 (Schema + OPA + dry-run)
+make demo        # End-to-end demo in demo mode
+```
+
+---
+
 ## ⚠️ Disclaimer
 
 **FirePilot is a demonstration and architectural exploration project. It is not intended for production use.**

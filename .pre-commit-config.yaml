@@ -1,0 +1,56 @@
+# FirePilot pre-commit hook configuration
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+#
+# Implements the ADR-0006 requirement: a pre-commit hook must verify
+# that no file matching *.env (excluding *.env.example) is staged for commit.
+
+repos:
+  # ---------------------------------------------------------------------------
+  # Local hooks — no external dependency at install time
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: block-env-files
+        name: Block .env files from being committed
+        language: script
+        entry: ci/scripts/check-no-env-files.sh
+        pass_filenames: false
+        always_run: true
+        description: >
+          Fails if any staged file matches *.env (excluding *.env.example).
+          Implements ADR-0006 credential leak prevention requirement.
+
+  # ---------------------------------------------------------------------------
+  # pre-commit-hooks — standard hygiene
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        name: Validate YAML syntax
+        # GitHub Actions workflow files use ${{ }} expressions which are valid
+        # YAML strings. check-yaml handles them correctly. The --unsafe flag
+        # is not required.
+        args: []
+      - id: trailing-whitespace
+        name: Remove trailing whitespace
+      - id: end-of-file-fixer
+        name: Ensure files end with a newline
+      - id: check-added-large-files
+        name: Block large file commits
+        args: [--maxkb=500]
+
+  # ---------------------------------------------------------------------------
+  # Ruff — Python linting (matches `make lint` target)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.1
+    hooks:
+      - id: ruff
+        name: Ruff Python linter
+        args:
+          - --exclude=.venv
+          - --exclude=__pycache__
+          - --exclude=build
+          - --exclude=dist

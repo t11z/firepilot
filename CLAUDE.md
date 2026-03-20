@@ -102,6 +102,37 @@ Do not remove or degrade mocks when adding real integrations.
 
 TypeScript is not used unless an ADR explicitly approves it for a specific component.
 
+### Pre-commit Hooks
+
+Pre-commit is required for all contributors. It enforces credential leak prevention
+(ADR-0006) and code hygiene checks before every commit.
+
+**Install once per clone:**
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
+**Run manually against all files:**
+
+```bash
+pre-commit run --all-files
+```
+
+Hooks configured in `.pre-commit-config.yaml`:
+
+| Hook | Purpose |
+|---|---|
+| `block-env-files` | Fails if any `*.env` file (not `*.env.example`) is staged — ADR-0006 |
+| `check-yaml` | Validates YAML syntax across the repository |
+| `trailing-whitespace` | Removes trailing whitespace |
+| `end-of-file-fixer` | Ensures files end with a newline |
+| `check-added-large-files` | Blocks files larger than 500 KB |
+| `ruff` | Python linting (matches `make lint`) |
+
+Pre-commit is a development dependency only — it is not added to any
+`pyproject.toml`. Install it globally with `pip install pre-commit`.
+
 ### Style
 
 - Python: formatted with `ruff`, type-annotated throughout

@@ -1,7 +1,7 @@
 name: Firewall Change Request
 description: >
   Submit a firewall rule change request for review and processing by FirePilot.
-  Supporting documentation (app deployment manual, architecture diagrams) can 
+  Supporting documentation (app deployment manual, architecture diagrams) can
   be attached as PDF files.
 title: "[FCR] "
 labels:
