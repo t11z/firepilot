@@ -1,11 +1,8 @@
 name: Firewall Change Request
 description: >
   Submit a firewall rule change request for review and processing by FirePilot.
-  FirePilot will analyse your request against existing policy and propose a
-  validated configuration. Supporting documentation (architecture diagrams,
-  compliance certificates, application security assessments) can be attached
-  as PDF files — drag and drop them into the text areas below.
-  Note: attached files must not exceed 32 MB each.
+  Supporting documentation (app deployment manual, architecture diagrams) can 
+  be attached as PDF files.
 title: "[FCR] "
 labels:
   - "firepilot:pending"
