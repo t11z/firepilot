@@ -19,13 +19,13 @@ FirePilot compresses this into minutes by making the firewall configuration **de
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────────┐
-│  GitHub Issue    │────▶│  GitHub Actions   │────▶│  Claude API             │
+┌──────────────────┐     ┌───────────────────┐     ┌─────────────────────────┐
+│  GitHub Issue    │───▶│  GitHub Actions   │────▶│  Claude API             │
 │  (Change Request)│     │  (Orchestration)  │     │  (Intent → Config)      │
-└─────────────────┘     └──────────────────┘     └──────────┬──────────────┘
+└──────────────────┘     └───────────────────┘     └──────────┬──────────────┘
                                                             │
                                  ┌──────────────────────────┼──────────────────┐
-                                 │              MCP Protocol │                  │
+                                 │             MCP Protocol │                  │
                                  ▼                          ▼                  ▼
                         ┌────────────────┐   ┌──────────────────┐   ┌─────────────┐
                         │ mcp-strata-    │   │ mcp-itsm         │   │ Git Repo    │
