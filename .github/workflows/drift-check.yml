@@ -1,0 +1,93 @@
+name: Drift Detection
+
+on:
+  schedule:
+    # Default: daily at 06:00 UTC. Override via repository variable DRIFT_CHECK_SCHEDULE.
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  drift-check:
+    name: Compare Git config against live SCM state
+    runs-on: ubuntu-latest
+    env:
+      FIREPILOT_ENV: ${{ vars.FIREPILOT_ENV || 'demo' }}
+      SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
+      SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
+      SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install PyYAML
+          pip install ./mcp-servers/mcp-strata-cloud-manager
+
+      - name: Run drift detection
+        id: drift
+        run: |
+          python ci/scripts/drift-check.py \
+            --config-dir firewall-configs/ \
+            > drift-report.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Process drift report
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          EXIT_CODE="${{ steps.drift.outputs.exit_code || steps.drift.outcome == 'success' && '0' || '1' }}"
+          if [ "$EXIT_CODE" = "0" ]; then
+            echo "No drift detected."
+            exit 0
+          fi
+          # Check for existing open drift issue
+          EXISTING=$(gh issue list \
+            --repo "$REPO" \
+            --label "firepilot:drift-detected" \
+            --state open \
+            --limit 1 \
+            --json number \
+            --jq '.[0].number // empty')
+          REPORT=$(cat drift-report.json)
+          TIMESTAMP=$(echo "$REPORT" | python -c "import sys,json; print(json.load(sys.stdin).get('timestamp','unknown'))")
+          TOTAL=$(echo "$REPORT" | python -c "import sys,json; print(json.load(sys.stdin).get('total_discrepancies',0))")
+          BODY="## Drift Detection Report
+
+          **Timestamp**: ${TIMESTAMP}
+          **Discrepancies found**: ${TOTAL}
+
+          <details>
+          <summary>Full report (JSON)</summary>
+
+          \`\`\`json
+          ${REPORT}
+          \`\`\`
+
+          </details>
+
+          *This report was generated automatically by the drift detection workflow.*"
+          if [ -n "$EXISTING" ]; then
+            # Append as comment to existing issue
+            gh issue comment "$EXISTING" \
+              --repo "$REPO" \
+              --body "$BODY"
+            echo "Appended drift report to issue #${EXISTING}"
+          else
+            # Create new drift issue
+            gh issue create \
+              --repo "$REPO" \
+              --title "Drift detected: ${TOTAL} discrepancy(ies) between Git and SCM" \
+              --label "firepilot:drift-detected" \
+              --body "$BODY"
+            echo "Created new drift detection issue"
+          fi
+          exit 1

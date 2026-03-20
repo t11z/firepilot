@@ -184,6 +184,8 @@ ci/
 │   └── firepilot_test.rego      # OPA policy unit tests
 ├── scripts/
 │   ├── build-opa-input.py       # Assembles OPA input JSON from a config directory
+│   ├── config_discovery.py      # Shared config discovery helpers (discover_rule_dirs, load_rule_files)
+│   ├── drift-check.py           # Drift detection: compares Git config against live SCM state
 │   ├── mcp_connect.py           # Shared MCP server connection helper
 │   ├── process-issue.py         # Claude agentic loop for firewall change requests
 │   ├── validate-all.sh          # Orchestrates Gates 1–3
@@ -191,6 +193,7 @@ ci/
 │   ├── gate3-dry-run.py         # Gate 3: live validation via mcp-strata-cloud-manager
 │   ├── gate4-deploy.sh          # Gate 4: shell entry point (demo/live dispatch)
 │   ├── gate4-deploy.py          # Gate 4: live deployment via MCP servers
+│   ├── test_drift_check.py      # Pytest tests for drift-check.py
 │   ├── test_gate3_dry_run.py    # Pytest tests for gate3-dry-run.py
 │   └── test_gate4_deploy.py     # Pytest tests for gate4-deploy.py
 └── fixtures/
@@ -258,6 +261,121 @@ that Gates 1–3 run without manual intervention:
 Close and reopen the issue.  The workflow should detect the existing branch and
 PR, post a comment on the issue linking to the existing PR, and exit
 successfully without creating duplicates.
+
+---
+
+## Drift Detection
+
+Reference: [ADR-0011 — Drift Detection Between Git State and SCM Live State](../docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md)
+
+---
+
+### What it checks
+
+The drift detection workflow compares every firewall rule in Git (`firewall-configs/`)
+against the live state returned by `mcp-strata-cloud-manager`. It only examines rules
+tagged `firepilot-managed` — rules managed outside FirePilot are ignored.
+
+Four drift types are reported:
+
+| Drift type | Meaning |
+|---|---|
+| `modified_externally` | Rule exists in both Git and SCM but fields differ |
+| `missing_from_scm` | Rule is in Git but not found in SCM |
+| `orphan_in_scm` | Rule is in SCM (tagged `firepilot-managed`) but not in Git |
+| `order_drift` | Same rules exist in both but their rulebase order differs |
+
+The output is a JSON report on stdout (see example below) and a human-readable
+summary on stderr.
+
+### Schedule
+
+The workflow runs **daily at 06:00 UTC** via a cron schedule. The cron expression
+is defined in `.github/workflows/drift-check.yml` and can be overridden by editing
+that file directly. The mode (`demo` or `live`) is controlled by the
+`FIREPILOT_ENV` repository variable (defaults to `demo`).
+
+### How to run manually
+
+**Via GitHub UI:**
+
+Navigate to **Actions → Drift Detection → Run workflow** and click **Run workflow**.
+
+**Via CLI (`gh`):**
+
+```bash
+gh workflow run drift-check.yml
+```
+
+**Locally (demo mode — no credentials required):**
+
+```bash
+pip install PyYAML ./mcp-servers/mcp-strata-cloud-manager
+FIREPILOT_ENV=demo python ci/scripts/drift-check.py --config-dir firewall-configs/
+```
+
+The script exits 0 (no drift), 1 (drift detected), or 2 (error).
+
+**Locally (live mode):**
+
+```bash
+export FIREPILOT_ENV=live
+export SCM_CLIENT_ID=...
+export SCM_CLIENT_SECRET=...
+export SCM_TSG_ID=...
+python ci/scripts/drift-check.py --config-dir firewall-configs/
+```
+
+### How to read the drift report
+
+The report is written as JSON to stdout and saved as `drift-report.json` in the
+workflow run. Example structure:
+
+```json
+{
+  "timestamp": "2026-03-20T06:00:00Z",
+  "mode": "live",
+  "folders_checked": [
+    {
+      "folder": "shared",
+      "position": "pre",
+      "git_rule_count": 3,
+      "scm_rule_count": 3,
+      "discrepancies": [
+        {
+          "rule_name": "allow-web-to-app",
+          "drift_type": "modified_externally",
+          "field_diffs": {
+            "action": {"git": "allow", "scm": "deny"},
+            "description": {"git": "Allow web traffic", "scm": "Modified by admin"}
+          }
+        }
+      ]
+    }
+  ],
+  "total_discrepancies": 1,
+  "result": "DRIFT_DETECTED"
+}
+```
+
+`result` is one of `NO_DRIFT`, `DRIFT_DETECTED`, or `ERROR`.
+
+### `firepilot:drift-detected` label
+
+When drift is detected, the workflow creates or updates a GitHub Issue labelled
+`firepilot:drift-detected`. If an open issue with this label already exists, the
+new report is appended as a comment rather than creating a duplicate.
+
+The `firepilot:drift-detected` label must be created in the repository before the
+workflow can use it. This is a one-time operator setup step:
+
+```bash
+gh label create "firepilot:drift-detected" --color "D93F0B" --description "Drift detected between Git config and live SCM state"
+```
+
+No credentials appear in the drift report JSON or in workflow logs — rule names,
+field values, and drift types are logged, but SCM credentials are passed only via
+environment variables to the MCP subprocess (ADR-0006).
 
 ---
 
