@@ -8,58 +8,13 @@ tool calls (create → get → add comment → update status).
 
 from datetime import datetime, timezone
 
+from mcp_itsm.formatting import format_comment_body, format_issue_body
 from mcp_itsm.models import AuditComment, ChangeRequest
 
 # Pre-seeded fixture constants
 FIXTURE_PRESEEDED_ID = "42"
 FIXTURE_DEMO_REPO = "firepilot-demo/firepilot-configs"
 FIXTURE_BASE_URL = f"https://github.com/{FIXTURE_DEMO_REPO}/issues"
-
-
-def _format_issue_body(requestor: str, config_reference: str, description: str) -> str:
-    """Format a change request issue body as structured Markdown.
-
-    Args:
-        requestor: Identity of the requesting business unit or user.
-        config_reference: Git commit SHA or PR URL.
-        description: Full change description.
-
-    Returns:
-        Formatted Markdown string for the issue body.
-    """
-    return (
-        f"## Change Request\n\n"
-        f"**Requestor**: {requestor}\n"
-        f"**Config Reference**: {config_reference}\n\n"
-        f"---\n\n"
-        f"{description}"
-    )
-
-
-def _format_comment_body(
-    event: str,
-    timestamp: str,
-    detail: str,
-    scm_reference: str | None,
-) -> str:
-    """Format an audit comment as structured Markdown.
-
-    Args:
-        event: The AllowedEvent value for this audit entry.
-        timestamp: ISO 8601 timestamp string.
-        detail: Human-readable event detail.
-        scm_reference: Optional SCM job ID or rule UUID.
-
-    Returns:
-        Formatted Markdown string for the comment body.
-    """
-    ref_display = scm_reference if scm_reference else "—"
-    return (
-        f"**FirePilot Event**: `{event}`\n"
-        f"**Time**: {timestamp}\n"
-        f"**Detail**: {detail}\n"
-        f"**SCM Reference**: {ref_display}"
-    )
 
 
 def _now_iso() -> str:
@@ -97,7 +52,7 @@ class FixtureStore:
             "customer portal backend connectivity. Expected impact: enables port 443 "
             "inbound to app-zone from web-zone. No other zones affected."
         )
-        body = _format_issue_body(
+        body = format_issue_body(
             requestor="Platform Engineering",
             config_reference="abc123def456",
             description=preseeded_description,
@@ -139,7 +94,7 @@ class FixtureStore:
         change_request_id = str(self._next_id)
         self._next_id += 1
         now = _now_iso()
-        body = _format_issue_body(
+        body = format_issue_body(
             requestor=requestor,
             config_reference=config_reference,
             description=description,
@@ -198,7 +153,7 @@ class FixtureStore:
         now = _now_iso()
 
         # Format the comment body (stored for reference; not returned in output)
-        _format_comment_body(
+        format_comment_body(
             event=event,
             timestamp=now,
             detail=detail,
