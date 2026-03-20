@@ -83,14 +83,14 @@ FIREPILOT_ENV=live python -m mcp_strata_cloud_manager.server
 | `list_security_rules` | Real SCM API call |
 | `list_addresses` | Real SCM API call |
 | `list_address_groups` | Real SCM API call |
-| `create_security_rule` | **Not yet implemented** (raises error) |
-| `push_candidate_config` | **Not yet implemented** (raises error) |
-| `get_job_status` | **Not yet implemented** (raises error) |
+| `create_security_rule` | Real SCM API call |
+| `push_candidate_config` | Real SCM API call |
+| `get_job_status` | Real SCM API call |
 
-Write and operations tools (`create_security_rule`, `push_candidate_config`,
-`get_job_status`) remain stubs in live mode. This is a read-only skeleton
-demonstrating the architecture transition from mock to real. Write operations
-require a follow-up implementation.
+> **Note on push_candidate_config**: The official SCM API does not document the
+> 201 response schema for the push endpoint. The tool returns whatever the API
+> provides. If the response format differs from the expected job object structure,
+> the tool output should be inspected during integration testing.
 
 ### Required environment variables (live mode)
 
