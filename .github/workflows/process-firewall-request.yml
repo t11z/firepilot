@@ -5,12 +5,21 @@
 #
 # The workflow also uses the built-in GITHUB_TOKEN (automatically provided
 # by GitHub Actions) for all GitHub API operations: reading issue content,
-# posting comments, updating labels, and downloading attachments.
+# posting comments, updating labels, downloading attachments, creating
+# branches, and opening pull requests.
 # No additional token configuration is required for GITHUB_TOKEN.
 #
 # mcp-strata-cloud-manager and mcp-itsm are installed from the repository
 # checkout and started as stdio subprocesses by the orchestrator script.
 # No Docker images or external registry are required.
+#
+# ADR references:
+#   ADR-0001 — Git as single source of truth: config enters via commit + CI
+#   ADR-0003 — CI/CD pipeline: Gates 1–3 run on the PR produced here
+#   ADR-0007 — YAML schema and directory layout used for committing files
+#   ADR-0009 — GitHub Issues flow: issue opens, Claude processes, PR created
+#   ADR-0010 — Eliminate comment-based approval gate: this workflow now
+#               commits valid YAML directly and opens a PR
 
 name: Process Firewall Change Request
 
@@ -26,13 +35,30 @@ jobs:
     # Only process issues that carry the firepilot:pending label
     if: contains(github.event.issue.labels.*.name, 'firepilot:pending')
     permissions:
+      contents: write
       issues: write
-      contents: read
+      pull-requests: write
+
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      REPO: ${{ github.repository }}
+      # GH_TOKEN is used by the `gh` CLI for idempotency checks, PR creation,
+      # and issue comments in the steps below.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
+      # -----------------------------------------------------------------------
+      # 1. Checkout
+      # -----------------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # Fetch full history so branch creation and push work correctly.
+          fetch-depth: 0
 
+      # -----------------------------------------------------------------------
+      # 2. Python setup
+      # -----------------------------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -40,11 +66,26 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests anthropic
+          pip install requests anthropic PyYAML
           pip install ./mcp-servers/mcp-strata-cloud-manager
           pip install ./mcp-servers/mcp-itsm
 
+      # -----------------------------------------------------------------------
+      # 3. Process request and call Claude API
+      # -----------------------------------------------------------------------
+      # The script posts Claude's full analysis as an issue comment.
+      # It also writes GitHub Actions outputs:
+      #   proposal_valid — "true" if a valid YAML rule was extracted
+      #   rule_name      — sanitised rule name (set when proposal_valid=true)
+      #   folder         — target folder (set when proposal_valid=true)
+      #   position       — target position (set when proposal_valid=true)
+      #   yaml_file_path — path to the extracted YAML file in $RUNNER_TEMP
+      #   from_zones     — comma-separated source zones
+      #   to_zones       — comma-separated destination zones
+      #   action         — rule action (allow/deny)
+      #   services       — comma-separated services
       - name: Process request and call Claude API
+        id: process
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -52,4 +93,257 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           REPO: ${{ github.repository }}
           FIREPILOT_ENV: demo
-        run: python .github/scripts/process_firewall_request.py
+          OUTPUT_DIR: ${{ runner.temp }}/firepilot-extracted
+        run: |
+          mkdir -p "${{ runner.temp }}/firepilot-extracted"
+          python .github/scripts/process_firewall_request.py
+
+      # -----------------------------------------------------------------------
+      # 4. Compute the feature branch name
+      # -----------------------------------------------------------------------
+      # Only runs when process step produced a valid YAML proposal.
+      - name: Compute feature branch name
+        id: branch
+        if: steps.process.outputs.proposal_valid == 'true'
+        run: |
+          RULE_NAME="${{ steps.process.outputs.rule_name }}"
+          # Sanitise rule name for use in a branch name:
+          #   • lowercase
+          #   • replace any run of non-alphanumeric characters with a single hyphen
+          #   • strip leading/trailing hyphens
+          SANITISED=$(
+            echo "$RULE_NAME" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed 's/[^a-z0-9-]/-/g' \
+              | sed 's/-\{2,\}/-/g' \
+              | sed 's/^-//; s/-$//'
+          )
+          BRANCH="firepilot/issue-${ISSUE_NUMBER}-${SANITISED}"
+          echo "name=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Computed branch name: ${BRANCH}"
+
+      # -----------------------------------------------------------------------
+      # 5. Idempotency check — skip if branch + PR already exist
+      # -----------------------------------------------------------------------
+      # Makes the workflow idempotent: if the issue is closed and reopened the
+      # workflow detects the existing branch/PR and posts a link comment instead
+      # of creating duplicates (ADR-0010, acceptance criterion 5).
+      - name: Check for existing branch and PR
+        id: idempotency
+        if: steps.process.outputs.proposal_valid == 'true'
+        run: |
+          BRANCH="${{ steps.branch.outputs.name }}"
+
+          # Check whether the branch already exists on the remote.
+          if git ls-remote --heads origin "${BRANCH}" | grep -q .; then
+            echo "Branch '${BRANCH}' already exists on remote."
+
+            # Check for an open PR targeting main from this branch.
+            PR_URL=$(
+              gh pr list \
+                --head "${BRANCH}" \
+                --base main \
+                --state open \
+                --json url \
+                --jq '.[0].url // ""'
+            )
+
+            if [ -n "${PR_URL}" ]; then
+              echo "Open PR found: ${PR_URL}"
+              echo "already_exists=true" >> "$GITHUB_OUTPUT"
+              echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+            else
+              # Branch exists but no open PR — proceed (e.g. PR was closed manually).
+              echo "No open PR found for existing branch. Proceeding."
+              echo "already_exists=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Branch '${BRANCH}' does not exist. Proceeding."
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Post a link comment and stop if the PR already exists.
+      - name: Post existing PR link comment on issue
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists == 'true'
+        run: |
+          gh issue comment "${ISSUE_NUMBER}" --body "## FirePilot — Already Processed
+
+          A pull request for this issue already exists:
+
+          **PR**: ${{ steps.idempotency.outputs.pr_url }}
+
+          _No duplicate branch or pull request was created._"
+
+      # -----------------------------------------------------------------------
+      # 6. Configure git identity
+      # -----------------------------------------------------------------------
+      - name: Configure git identity
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          git config user.name "FirePilot[bot]"
+          git config user.email "firepilot[bot]@users.noreply.github.com"
+
+      # -----------------------------------------------------------------------
+      # 7. Create feature branch
+      # -----------------------------------------------------------------------
+      - name: Create feature branch
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          git checkout -b "${{ steps.branch.outputs.name }}"
+          echo "Created branch: ${{ steps.branch.outputs.name }}"
+
+      # -----------------------------------------------------------------------
+      # 8. Place the rule YAML file
+      # -----------------------------------------------------------------------
+      - name: Place rule YAML file in firewall-configs
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          RULE_NAME="${{ steps.process.outputs.rule_name }}"
+          FOLDER="${{ steps.process.outputs.folder }}"
+          POSITION="${{ steps.process.outputs.position }}"
+          YAML_SRC="${{ steps.process.outputs.yaml_file_path }}"
+          DEST_DIR="firewall-configs/${FOLDER}/${POSITION}"
+          DEST_FILE="${DEST_DIR}/${RULE_NAME}.yaml"
+
+          mkdir -p "${DEST_DIR}"
+          cp "${YAML_SRC}" "${DEST_FILE}"
+          echo "Rule file placed at: ${DEST_FILE}"
+
+      # -----------------------------------------------------------------------
+      # 9. Update the _rulebase.yaml manifest
+      # -----------------------------------------------------------------------
+      # ADR-0007 requires that every rule addition changes both the rule file and
+      # the _rulebase.yaml manifest atomically (in the same commit).  The update
+      # script creates the manifest if it doesn't exist.
+      - name: Update _rulebase.yaml manifest
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          RULE_NAME="${{ steps.process.outputs.rule_name }}"
+          FOLDER="${{ steps.process.outputs.folder }}"
+          POSITION="${{ steps.process.outputs.position }}"
+          MANIFEST="firewall-configs/${FOLDER}/${POSITION}/_rulebase.yaml"
+
+          python .github/scripts/update_rulebase_manifest.py \
+            --manifest "${MANIFEST}" \
+            --rule-name "${RULE_NAME}" \
+            --folder "${FOLDER}" \
+            --position "${POSITION}"
+
+      # -----------------------------------------------------------------------
+      # 10. Commit rule file and manifest atomically
+      # -----------------------------------------------------------------------
+      # Both files are staged and committed together.  A commit containing only
+      # one of the two would fail Gate 1 (JSON Schema) and Gate 2 (OPA) because
+      # the manifest↔file consistency invariant (ADR-0007) would be violated.
+      - name: Commit rule file and updated manifest
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          RULE_NAME="${{ steps.process.outputs.rule_name }}"
+          FOLDER="${{ steps.process.outputs.folder }}"
+          POSITION="${{ steps.process.outputs.position }}"
+
+          git add "firewall-configs/${FOLDER}/${POSITION}/${RULE_NAME}.yaml"
+          git add "firewall-configs/${FOLDER}/${POSITION}/_rulebase.yaml"
+          git commit -m "feat(configs): add ${RULE_NAME} from issue #${ISSUE_NUMBER}"
+
+      # -----------------------------------------------------------------------
+      # 11. Push the feature branch
+      # -----------------------------------------------------------------------
+      - name: Push feature branch
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          git push -u origin "${{ steps.branch.outputs.name }}"
+
+      # -----------------------------------------------------------------------
+      # 12. Open a pull request against main
+      # -----------------------------------------------------------------------
+      # The PR body links back to the originating issue and summarises the rule.
+      # The `firewall-configs/**` path filter in `validate.yml` ensures that
+      # Gates 1–3 run automatically on this PR without any manual intervention.
+      - name: Open pull request against main
+        id: create-pr
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          RULE_NAME="${{ steps.process.outputs.rule_name }}"
+          FOLDER="${{ steps.process.outputs.folder }}"
+          POSITION="${{ steps.process.outputs.position }}"
+          FROM_ZONES="${{ steps.process.outputs.from_zones }}"
+          TO_ZONES="${{ steps.process.outputs.to_zones }}"
+          ACTION="${{ steps.process.outputs.action }}"
+          SERVICES="${{ steps.process.outputs.services }}"
+
+          # Write the PR body to a temp file to avoid quoting/escaping issues.
+          cat > /tmp/pr-body.md << BODY
+          ## FirePilot — Automated Configuration PR
+
+          **Originating issue**: #${ISSUE_NUMBER}
+          **Branch**: \`${{ steps.branch.outputs.name }}\`
+
+          ---
+
+          ### Rule summary
+
+          | Field | Value |
+          |---|---|
+          | **Rule name** | \`${RULE_NAME}\` |
+          | **Source zone(s)** | \`${FROM_ZONES}\` |
+          | **Destination zone(s)** | \`${TO_ZONES}\` |
+          | **Action** | \`${ACTION}\` |
+          | **Service(s)** | \`${SERVICES}\` |
+          | **Config location** | \`firewall-configs/${FOLDER}/${POSITION}/\` |
+
+          ---
+
+          ### Validation
+
+          The CI pipeline (\`validate.yml\`) triggers automatically on this PR due to
+          the \`firewall-configs/**\` path filter. All three gates must pass before
+          the PR can be merged:
+
+          - **Gate 1** — JSON Schema validation (structural correctness)
+          - **Gate 2** — OPA policy evaluation (security semantics)
+          - **Gate 3** — SCM dry-run validation
+
+          After merge, \`deploy.yml\` re-runs Gates 1–3 then executes **Gate 4**:
+          pushing the configuration to Strata Cloud Manager via
+          \`mcp-strata-cloud-manager\` and recording the result via \`mcp-itsm\`.
+
+          ---
+
+          _This PR was auto-generated by the FirePilot processing workflow in response
+          to issue #${ISSUE_NUMBER}.  Human review and PR approval are required before
+          merging._
+          BODY
+
+          PR_URL=$(
+            gh pr create \
+              --title "[FirePilot] ${RULE_NAME} — Issue #${ISSUE_NUMBER}" \
+              --body-file /tmp/pr-body.md \
+              --base main \
+              --head "${{ steps.branch.outputs.name }}"
+          )
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "Pull request created: ${PR_URL}"
+
+      # -----------------------------------------------------------------------
+      # 13. Post a comment on the issue linking to the newly created PR
+      # -----------------------------------------------------------------------
+      - name: Post PR link comment on issue
+        if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        run: |
+          RULE_NAME="${{ steps.process.outputs.rule_name }}"
+          PR_URL="${{ steps.create-pr.outputs.pr_url }}"
+
+          gh issue comment "${ISSUE_NUMBER}" --body "## FirePilot — Pull Request Created
+
+          The proposed configuration has been committed and a pull request has been opened automatically.
+
+          **PR**: ${PR_URL}
+
+          **Next steps**:
+          1. The CI validation pipeline (Gates 1–3) is running on the PR now.
+          2. Review the validation results and the configuration diff in the PR.
+          3. Merge the PR to trigger Gate 4 — deployment to Strata Cloud Manager.
+
+          _Rule_: \`${RULE_NAME}\`"

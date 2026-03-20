@@ -83,11 +83,13 @@ firepilot/
 
 **3. Generate** — Claude parses the intent, queries the current firewall state via `mcp-strata-cloud-manager`, and generates declarative YAML configuration aligned with the existing rulebase.
 
-**4. Validate** — The CI pipeline runs three gates: JSON Schema validation (structural correctness), OPA policy evaluation (security semantics), and a dry-run against the SCM API.
+**4. Commit** — If the request is valid, Claude's proposed YAML is committed to a feature branch and a pull request is opened against `main`. If the request is rejected, a rejection comment is posted and `firepilot:rejected` is set — no branch or PR is created.
 
-**5. Review** — Claude posts its analysis, the proposed configuration, and the validation results as an issue comment. A human approver reviews and sets the approval label.
+**5. Validate** — The CI pipeline runs three gates on the PR: JSON Schema validation (structural correctness), OPA policy evaluation (security semantics), and a dry-run against the SCM API.
 
-**6. Deploy** — On approval, the configuration is pushed to Strata Cloud Manager via MCP, and the deployment result is recorded on the issue.
+**6. Review and merge** — A human approver reviews the PR diff and CI results, then merges.
+
+**7. Deploy** — On merge, the configuration is pushed to Strata Cloud Manager via MCP, and the deployment result is recorded on the issue.
 
 ---
 
@@ -132,11 +134,10 @@ The full production workflow operates entirely within GitHub:
 1. **Issue created** — A business unit opens a GitHub Issue using the `firewall-change-request` template. The template automatically applies the `firepilot:pending` label.
 2. **Workflow triggers** — The `firepilot:pending` label triggers `.github/workflows/process-firewall-request.yml`.
 3. **Claude analyses** — The workflow extracts the issue body and any PDF attachments, then invokes the Claude API (`ci/scripts/process-issue.py`). Claude queries the live SCM API via `mcp-strata-cloud-manager` and the ITSM state via `mcp-itsm`.
-4. **Comment posted** — Claude posts its analysis, proposed YAML configuration, and validation summary as an issue comment.
-5. **Human approves** — A security approver reviews the comment and sets the `firepilot:approved` label on the issue.
-6. **Config committed** — The approved YAML is committed to a feature branch and a PR is opened against `main`.
-7. **PR validation** — `.github/workflows/validate.yml` runs Gates 1–3 on the PR.
-8. **Merge → deploy** — After PR merge, `.github/workflows/deploy.yml` re-runs Gates 1–3 then executes Gate 4: pushing the configuration to Strata Cloud Manager via `mcp-strata-cloud-manager` and recording the deployment result via `mcp-itsm`.
+4. **Comment posted** — Claude posts its analysis and proposed YAML configuration as an issue comment.
+5. **Config committed** — If the proposal is valid, the YAML is committed to a feature branch and a PR is opened against `main` automatically. If the request is rejected, `firepilot:rejected` is set and no PR is created.
+6. **PR validation** — `.github/workflows/validate.yml` runs Gates 1–3 on the PR.
+7. **Merge → deploy** — After PR merge, `.github/workflows/deploy.yml` re-runs Gates 1–3 then executes Gate 4: pushing the configuration to Strata Cloud Manager via `mcp-strata-cloud-manager` and recording the deployment result via `mcp-itsm`.
 
 The demo fixtures represent a four-tier network segmentation model (untrust → web → app → db), pre-configured security zones, address objects, and a baseline rulebase.
 

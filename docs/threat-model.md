@@ -80,7 +80,7 @@ pipeline.
 | OPA policies enforce topology constraints independently | 3 | Even if Claude proposes an internet-to-database rule, Gate 2 blocks it — OPA does not trust Claude (ADR-0003, ADR-0008) |
 | JSON Schema validates structural correctness | 3 | Malformed YAML generated under injection is caught at Gate 1 |
 | `ticket_id` enforcement is server-side in MCP | 4 | Claude cannot push a configuration without a valid change request, regardless of prompt manipulation (ADR-0004) |
-| Human approval gate | 3/4 | The `firepilot:approved` label is set by a human reviewer, not by Claude or any automated process (ADR-0005) |
+| Human approval gate | 3/4 | PR merge requires human review — Claude never merges its own PR (ADR-0001, ADR-0010) |
 
 **Residual risk**: A sophisticated injection could produce a rule
 that is structurally valid, passes OPA policies, and appears
@@ -271,37 +271,37 @@ SHA or verified against a cryptographic hash.
 
 ### T7 — Approval Bypass
 
-**Attack surface**: Layer 3/4 boundary (label-based approval).
+**Attack surface**: Layer 3 (PR merge permissions).
 
-**Description**: An attacker with label-management permission on the
-GitHub repository sets `firepilot:approved` on their own change
-request, bypassing the intended human review.
+**Description**: An attacker with write access to the GitHub repository
+merges their own firewall change PR without independent security review,
+bypassing the intended human oversight gate.
 
 **Consequence**: A firewall configuration change is deployed without
-independent security review.
+independent security review. Unlike the previous label-based approval
+gate, this requires repository write access — a significantly higher
+bar than label-management permission.
 
 **Existing mitigations**:
 
 | Control | Layer | How it helps |
 |---------|-------|-------------|
-| `firepilot:approved` / `firepilot:rejected` can only be set by humans — FirePilot never programmatically sets approval labels (ADR-0005) | 3 | Automated self-approval is architecturally impossible |
-| GitHub repository permission model controls who can manage labels | 3 | Label management can be restricted to a security team |
-| Full audit trail in issue comments documents who applied which label and when | 3 | Post-incident review can identify unauthorized approvals |
+| Branch protection on `main` requires PR review — direct pushes are prohibited (CLAUDE.md) | 3 | Self-merge requires a second account with write access to approve the PR |
+| The PR is the sole approval artefact; no intermediate label step exists (ADR-0010) | 3 | The attack surface is reduced: no label-management shortcut to PR creation |
+| Full audit trail in Git history and issue comments links every merge to a reviewer identity | 3 | Post-incident review can identify unauthorized merges |
+| OPA and JSON Schema re-run on merge in `deploy.yml` (Gates 1–3) | 3 | Even a merged-but-malicious rule must pass all policy gates before deployment |
 
-**Residual risk**: GitHub's permission model does not offer
-per-label access control. Any user with `triage` or higher
-permission on the repository can add or remove any label. In
-a production deployment, restricting label management to a
-GitHub Team with a CODEOWNERS rule or a GitHub App that
-validates the approver's identity would be necessary.
+**Residual risk**: GitHub's `required_approving_review_count` setting
+controls how many reviewers must approve before merge, but does not
+enforce that the reviewer is different from the PR author by default
+on all plans. In a production deployment, requiring at least one
+approving review from a protected CODEOWNERS team would be necessary.
 
 **Recommended hardening** (not yet implemented):
 
-- GitHub App or Actions workflow that validates the approver
-  identity against an allowlist before the approval-to-PR
-  workflow proceeds
-- Require a minimum number of distinct approvers (not just
-  one label toggle)
+- CODEOWNERS rule requiring a dedicated security reviewer for all
+  changes to `firewall-configs/` — prevents self-merge by the PR author
+- Require a minimum number of distinct approvers via branch protection rules
 
 ---
 
@@ -364,7 +364,7 @@ Legend: ● strong mitigation · ◐ partial mitigation · ◑ weak mitigation �
 |----------|--------|--------|--------|
 | 1 | T6 | Pin Actions to commit SHAs; verify OPA binary checksum; hash-pin Python CI dependencies | Low |
 | 2 | T3 | Implement `.pre-commit-config.yaml` with `.env` leak detection (ADR-0006 follow-up) | Low |
-| 3 | T7 | Add approver identity validation to `approve-and-commit.yml` | Medium |
+| 3 | T7 | Add CODEOWNERS rule for `firewall-configs/` to prevent self-merge | Low |
 | 4 | T4 | Add CODEOWNERS rule for `ci/`, `.github/workflows/`, and `ci/policies/` | Low |
 | 5 | T8 | Design drift detection mechanism (requires new ADR) | High |
 | 6 | T1/T2 | Explore secondary validation pass for prompt injection detection | High |

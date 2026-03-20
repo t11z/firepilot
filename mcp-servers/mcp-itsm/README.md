@@ -35,7 +35,7 @@ Demo mode requires no GitHub credentials. All tools return realistic in-memory f
 FIREPILOT_ENV=demo python -m mcp_itsm.server
 ```
 
-The server starts with one pre-seeded change request (`change_request_id: "42"`, status: `approved`) so a demo walkthrough can proceed directly to the push step.
+The server starts with one pre-seeded change request (`change_request_id: "42"`, status: `pending`) to support demo queries without requiring a create step.
 
 ---
 
@@ -112,9 +112,8 @@ Only `"deployed"` and `"failed"` are accepted. FirePilot never programmatically 
 
 | Label | Status Value | Meaning |
 |-------|-------------|---------|
-| `firepilot:pending` | `"pending"` | Awaiting review |
-| `firepilot:approved` | `"approved"` | Approved — push may proceed |
-| `firepilot:rejected` | `"rejected"` | Rejected — push must not proceed |
+| `firepilot:pending` | `"pending"` | Awaiting processing |
+| `firepilot:rejected` | `"rejected"` | Rejected by Claude — no PR created |
 | `firepilot:deployed` | `"deployed"` | Push completed successfully |
 | `firepilot:failed` | `"failed"` | Push attempted but failed |
 

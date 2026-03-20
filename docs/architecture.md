@@ -78,7 +78,7 @@ C4Container
     System_Ext(scm, "Strata Cloud Manager API")
 
     Rel(requestor, git_repo, "Creates Issue (change request)")
-    Rel(approver, git_repo, "Sets firepilot:approved label")
+    Rel(approver, git_repo, "Reviews and merges PR")
     Rel(git_repo, actions, "Triggers workflows")
     Rel(actions, claude, "Invokes with Issue body + PDF attachments")
     Rel(claude, mcp_strata, "MCP tool calls (stdio)")
@@ -130,20 +130,22 @@ flowchart TD
         H -- No --> J[Claude generates YAML config<br>and posts proposal comment]
     end
 
-    subgraph Approval ["3 — Human Review"]
-        J --> K[Approver reviews proposal<br>in Issue comments]
-        K --> L{Approved?}
-        L -- No --> M[firepilot:rejected label]
-        L -- Yes --> N[firepilot:approved label]
+    subgraph Commit ["3 — Commit & PR"]
+        J --> O[YAML committed to feature branch]
+        O --> P[PR opened against main]
     end
 
-    subgraph Deployment ["4 — Deployment (ADR-0003, ADR-0004)"]
-        N --> O[YAML committed to feature branch]
-        O --> P[PR opened against main]
+    subgraph Approval ["4 — Human Review"]
+        P --> K[Approver reviews PR diff<br>and CI results]
+        K --> L{Approved?}
+        L -- No --> M[PR closed / changes requested]
+        L -- Yes --> T[PR merged to main]
+    end
+
+    subgraph Deployment ["5 — Deployment (ADR-0003, ADR-0004)"]
         P --> Q[Gate 1: JSON Schema validation]
         Q --> R[Gate 2: OPA policy evaluation]
         R --> S[Gate 3: SCM dry-run validation]
-        S --> T[PR merged to main]
         T --> U[Gate 4: create_security_rule<br>via mcp-strata]
         U --> V[push_candidate_config<br>activates rules in SCM]
         V --> W[mcp-itsm updates Issue:<br>firepilot:deployed]
@@ -349,13 +351,11 @@ firepilot/
 │   ├── ISSUE_TEMPLATE/
 │   │   └── firewall-change-request.yml    # Structured intake form (ADR-0009)
 │   ├── workflows/
-│   │   ├── approve-and-commit.yml         # Approval → commit → PR (firepilot:approved)
-│   │   ├── process-firewall-request.yml   # Issue → Claude processing
+│   │   ├── process-firewall-request.yml   # Issue → Claude processing → commit → PR
 │   │   ├── validate.yml                   # PR validation (Gates 1–3)
 │   │   └── deploy.yml                     # Merge deployment (Gates 1–4)
 │   └── scripts/
-│       ├── process_firewall_request.py    # Issue processing entrypoint
-│       ├── extract_yaml_from_comment.py   # YAML extraction from issue comments
+│       ├── process_firewall_request.py    # Issue processing, YAML extraction, PR creation
 │       └── update_rulebase_manifest.py    # _rulebase.yaml manifest update
 ├── mcp-servers/
 │   ├── mcp-strata-cloud-manager/          # SCM API integration (ADR-0004)

@@ -34,7 +34,7 @@ async def test_create_change_request(server: FastMCP) -> None:
 
 @pytest.mark.asyncio
 async def test_get_change_request_exists(server: FastMCP) -> None:
-    """Getting the pre-seeded change request '42' returns status 'approved'."""
+    """Getting the pre-seeded change request '42' returns status 'pending'."""
     result = await call_tool(
         server,
         "get_change_request",
@@ -43,8 +43,8 @@ async def test_get_change_request_exists(server: FastMCP) -> None:
 
     assert "error" not in result
     assert result["change_request_id"] == "42"
-    assert result["status"] == "approved"
-    assert "firepilot:approved" in result["labels"]
+    assert result["status"] == "pending"
+    assert "firepilot:pending" in result["labels"]
     assert result["title"] == "Allow HTTPS from web-zone to app-zone for customer portal"
     assert result["closed_at"] is None
 
