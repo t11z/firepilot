@@ -71,7 +71,7 @@ class FixtureStore:
     """In-memory state store for demo mode change requests.
 
     Maintains the full lifecycle state of change requests created during a
-    server session. Pre-seeded with one approved change request to support
+    server session. Pre-seeded with one pending change request to support
     immediate demo queries without requiring a create step.
 
     Attributes:
@@ -91,7 +91,7 @@ class FixtureStore:
         self._seed()
 
     def _seed(self) -> None:
-        """Populate the store with the pre-seeded demo change request."""
+        """Populate the store with the pre-seeded demo change request (status: pending)."""
         preseeded_description = (
             "Allow HTTPS traffic from the web-zone to the app-zone to support "
             "customer portal backend connectivity. Expected impact: enables port 443 "
@@ -106,8 +106,8 @@ class FixtureStore:
             change_request_id=FIXTURE_PRESEEDED_ID,
             title="Allow HTTPS from web-zone to app-zone for customer portal",
             url=f"{FIXTURE_BASE_URL}/{FIXTURE_PRESEEDED_ID}",
-            status="approved",
-            labels=["firepilot:approved"],
+            status="pending",
+            labels=["firepilot:pending"],
             requestor="Platform Engineering",
             config_reference="abc123def456",
             created_at="2026-03-19T10:00:00Z",

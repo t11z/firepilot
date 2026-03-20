@@ -169,19 +169,19 @@ ci/
 
 ---
 
-## Testing the Approval-to-PR Workflow
+## Testing the Processing-to-PR Workflow
 
-This section describes how to manually verify the end-to-end approval-to-PR
-path implemented by `.github/workflows/approve-and-commit.yml`.
+This section describes how to manually verify the end-to-end flow from issue
+creation to PR, implemented by `.github/workflows/process-firewall-request.yml`.
 
 **Prerequisites**:
 
-- A GitHub repository with the `firepilot:pending`, `firepilot:approved`, and
-  related labels pre-created (see ADR-0005).
+- A GitHub repository with the `firepilot:pending` and related labels
+  pre-created (see ADR-0005).
 - The repository's Actions must be enabled and the workflow file committed to
   the default branch.
-- You need issue-creation permission and label-management permission on the
-  repository.
+- You need issue-creation permission on the repository and an
+  `ANTHROPIC_API_KEY` secret configured.
 
 ---
 
@@ -191,86 +191,28 @@ path implemented by `.github/workflows/approve-and-commit.yml`.
 
 Open a new GitHub Issue using the `firewall-change-request` template.  Fill in
 all required fields.  The template automatically applies the `firepilot:pending`
-label on creation.
+label on creation, which triggers `.github/workflows/process-firewall-request.yml`.
 
-**Step 2 — Add a YAML proposal comment**
+**Step 2 — Observe the processing workflow run**
 
-Manually add a comment to the issue containing a fenced YAML code block that
-represents a valid FirePilot security rule.  The comment must include a
-` ```yaml ` block with at minimum: `schema_version`, `name`, `action`, `from`,
-`to`, `source`, `source_user`, `destination`, `service`, `application`,
-`category`, and `tag` (including `"firepilot-managed"`).
+Navigate to **Actions → Process Firewall Change Request**.  The workflow runs
+Claude's full agentic analysis loop against both MCP servers in demo mode.
 
-Example comment body:
+If Claude produces a valid YAML proposal, the workflow continues through steps
+4–13: computing a feature branch name, checking for existing branches/PRs
+(idempotency guard), committing the rule file and manifest atomically, pushing
+the branch, opening a PR, and posting a comment linking to the PR.
 
-~~~markdown
-FirePilot analysis complete. Proposed configuration:
+If Claude rejects the request, only an issue comment is posted and
+`firepilot:rejected` is applied — no branch or PR is created.
 
-```yaml
-schema_version: 1
-name: "allow-api-to-cache"
-description: "Permit Redis traffic from application zone to cache zone"
-tag:
-  - "firepilot-managed"
-from:
-  - "app-zone"
-to:
-  - "cache-zone"
-source:
-  - "app-subnet-10.2.0.0-24"
-negate_source: false
-destination:
-  - "cache-subnet-10.4.0.0-24"
-negate_destination: false
-source_user:
-  - "any"
-application:
-  - "redis"
-category:
-  - "any"
-service:
-  - "application-default"
-action: "allow"
-log_end: true
-```
-~~~
-
-> **Optional placement hints**: If you include `folder` and `position` keys in
-> the YAML block, the workflow uses them to determine the target directory.  If
-> absent, the workflow defaults to `firewall-configs/shared/pre/`.  These keys
-> are stripped before the file is committed (per ADR-0007).
-
-**Step 3 — Add the `firepilot:approved` label**
-
-In the GitHub UI, click **Labels** on the issue sidebar and add
-`firepilot:approved`.  This triggers `.github/workflows/approve-and-commit.yml`.
-
-**Step 4 — Observe the workflow run**
-
-Navigate to **Actions → Approve and Commit Firewall Change**.  The workflow
-run should complete all 13 steps:
-
-1. Checkout
-2. Set up Python
-3. Install dependencies
-4. Extract YAML from issue comments (locates the block from Step 2)
-5. Compute feature branch name (`firepilot/issue-{n}-{rule-name}`)
-6. Check for existing branch/PR (idempotency guard)
-7. Configure git identity
-8. Create feature branch
-9. Place rule YAML file in `firewall-configs/{folder}/{position}/`
-10. Update `_rulebase.yaml` manifest
-11. Commit both files atomically
-12. Push the feature branch
-13. Open PR + post comment on the issue
-
-**Step 5 — Verify the PR**
+**Step 3 — Verify the PR**
 
 A PR titled `[FirePilot] {rule-name} — Issue #{n}` should appear targeting
 `main`.  The PR body links to the originating issue and summarises the rule
 (source zone → destination zone, action, services).
 
-**Step 6 — Verify CI validation triggers**
+**Step 4 — Verify CI validation triggers**
 
 Because the PR modifies files under `firewall-configs/**`, the
 `.github/workflows/validate.yml` workflow triggers automatically.  Confirm
@@ -280,23 +222,11 @@ that Gates 1–3 run without manual intervention:
 - Gate 2: OPA policy evaluation
 - Gate 3: SCM dry-run (mock in demo mode)
 
-**Step 7 — Verify idempotency**
+**Step 5 — Verify idempotency**
 
-Remove and re-add the `firepilot:approved` label.  The workflow should detect
-the existing branch and PR, post a comment on the issue linking to the existing
-PR, and exit successfully without creating duplicates.
-
----
-
-### Error path verification
-
-To verify the error handling path (acceptance criterion 4), create a new issue
-and add the `firepilot:approved` label *without* first posting a YAML comment.
-The workflow should:
-
-1. Fail at the "Extract YAML" step.
-2. Post a comment on the issue explaining that no valid YAML block was found.
-3. Exit with a non-zero status (visible as a failed workflow run in Actions).
+Close and reopen the issue.  The workflow should detect the existing branch and
+PR, post a comment on the issue linking to the existing PR, and exit
+successfully without creating duplicates.
 
 ---
 
