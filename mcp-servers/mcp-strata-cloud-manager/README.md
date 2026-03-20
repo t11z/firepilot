@@ -64,6 +64,53 @@ All read tools accept `folder` (required), optional `name` filter, and
 
 ---
 
+## Live Mode
+
+Set `FIREPILOT_ENV=live` and provide the SCM OAuth2 credentials to run against
+the real Palo Alto Networks Strata Cloud Manager API.
+
+```bash
+cp .env.example .env
+# Edit .env — fill in SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID
+FIREPILOT_ENV=live python -m mcp_strata_cloud_manager.server
+```
+
+### What works in live mode
+
+| Tool | Live mode |
+|---|---|
+| `list_security_zones` | Real SCM API call |
+| `list_security_rules` | Real SCM API call |
+| `list_addresses` | Real SCM API call |
+| `list_address_groups` | Real SCM API call |
+| `create_security_rule` | **Not yet implemented** (raises error) |
+| `push_candidate_config` | **Not yet implemented** (raises error) |
+| `get_job_status` | **Not yet implemented** (raises error) |
+
+Write and operations tools (`create_security_rule`, `push_candidate_config`,
+`get_job_status`) remain stubs in live mode. This is a read-only skeleton
+demonstrating the architecture transition from mock to real. Write operations
+require a follow-up implementation.
+
+### Required environment variables (live mode)
+
+See `.env.example` for the full list. All three SCM credential variables are
+required; the endpoint URLs default to the Palo Alto production endpoints.
+
+| Variable | Description |
+|---|---|
+| `SCM_CLIENT_ID` | OAuth2 client ID for the SCM service account |
+| `SCM_CLIENT_SECRET` | OAuth2 client secret |
+| `SCM_TSG_ID` | Tenant Service Group identifier |
+| `SCM_API_BASE_URL` | SCM API base URL (default: `https://api.strata.paloaltonetworks.com`) |
+| `SCM_TOKEN_URL` | OAuth2 token endpoint (default: `https://auth.apps.paloaltonetworks.com/oauth2/access_token`) |
+
+The token is acquired lazily on the first tool call and proactively refreshed
+when it expires within 60 seconds. The token value is never logged, written
+to disk, or returned in any tool response.
+
+---
+
 ## Running Tests
 
 ```bash
