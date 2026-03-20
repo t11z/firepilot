@@ -2,7 +2,10 @@
 
 Exposes create_security_rule as an MCP tool mapped to the SCM write API.
 Enforces ticket_id server-side before any processing occurs.
-Live mode raises NotImplementedError — demo mode only in this implementation.
+
+In demo mode (FIREPILOT_ENV=demo) the tool returns a realistic fixture response
+with no network calls. In live mode (FIREPILOT_ENV=live) the tool executes a
+real HTTP POST against the configured SCM API via SCMClient.
 """
 
 import time
@@ -15,6 +18,13 @@ from mcp_strata_cloud_manager.config import get_settings
 from mcp_strata_cloud_manager.fixtures.strata import (
     FIXTURE_CREATED_RULE_ID,
     FIXTURE_FOLDER,
+)
+from mcp_strata_cloud_manager.scm_client import (
+    SCM_API_ERROR_CODE,
+    SCM_AUTH_FAILURE_CODE,
+    SCMAPIError,
+    SCMAuthError,
+    get_scm_client,
 )
 
 logger = structlog.get_logger(__name__)
@@ -130,69 +140,149 @@ def register_write_tools(mcp: FastMCP) -> None:
                 }
             }
 
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
-
-            # Demo mode: echo back the input as a SecurityRule with assigned id
-            rule: dict[str, Any] = {
-                "id": FIXTURE_CREATED_RULE_ID,
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            # Build SCM request body; map from_zones/to_zones → from/to (ADR-0004)
+            body: dict[str, Any] = {
                 "name": name,
-                "folder": FIXTURE_FOLDER,
-                "policy_type": "Security",
-                "disabled": disabled,
-                "description": description,
-                "tag": tag or [],
+                "action": action,
                 "from": from_zones or [],
                 "to": to_zones or [],
                 "source": source or [],
-                "negate_source": negate_source,
                 "source_user": source_user or ["any"],
                 "destination": destination or [],
                 "service": service or [],
-                "schedule": schedule,
-                "action": action,
-                "negate_destination": negate_destination,
-                "source_hip": source_hip or [],
-                "destination_hip": destination_hip or [],
                 "application": application or [],
                 "category": category or ["any"],
-                "profile_setting": {"group": profile_setting_group or []},
-                "log_setting": log_setting,
+                "disabled": disabled,
+                "negate_source": negate_source,
+                "negate_destination": negate_destination,
                 "log_start": log_start,
                 "log_end": log_end,
-                "tenant_restrictions": [],
             }
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="create_security_rule",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=ticket_id,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return rule
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="create_security_rule",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=ticket_id,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+            # Exclude None-valued optional fields from the body
+            if description is not None:
+                body["description"] = description
+            if tag is not None:
+                body["tag"] = tag
+            if source_hip is not None:
+                body["source_hip"] = source_hip
+            if destination_hip is not None:
+                body["destination_hip"] = destination_hip
+            if schedule is not None:
+                body["schedule"] = schedule
+            if profile_setting_group is not None:
+                body["profile_setting"] = {"group": profile_setting_group}
+            if log_setting is not None:
+                body["log_setting"] = log_setting
+
+            try:
+                scm_result = await client.create_security_rule(folder, body, position)
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="create_security_rule",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=ticket_id,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="create_security_rule",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=ticket_id,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": str(exc),
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="create_security_rule",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=ticket_id,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                        "scm_request_id": exc.request_id,
+                        "scm_error_codes": exc.error_codes,
+                    }
+                }
+
+        # Demo mode: echo back the input as a SecurityRule with assigned id
+        rule: dict[str, Any] = {
+            "id": FIXTURE_CREATED_RULE_ID,
+            "name": name,
+            "folder": FIXTURE_FOLDER,
+            "policy_type": "Security",
+            "disabled": disabled,
+            "description": description,
+            "tag": tag or [],
+            "from": from_zones or [],
+            "to": to_zones or [],
+            "source": source or [],
+            "negate_source": negate_source,
+            "source_user": source_user or ["any"],
+            "destination": destination or [],
+            "service": service or [],
+            "schedule": schedule,
+            "action": action,
+            "negate_destination": negate_destination,
+            "source_hip": source_hip or [],
+            "destination_hip": destination_hip or [],
+            "application": application or [],
+            "category": category or ["any"],
+            "profile_setting": {"group": profile_setting_group or []},
+            "log_setting": log_setting,
+            "log_start": log_start,
+            "log_end": log_end,
+            "tenant_restrictions": [],
+        }
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="create_security_rule",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=folder,
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=ticket_id,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return rule

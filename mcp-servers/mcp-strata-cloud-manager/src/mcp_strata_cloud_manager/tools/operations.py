@@ -2,7 +2,11 @@
 
 Exposes push_candidate_config and get_job_status as MCP tools mapped to
 SCM operations API endpoints. push_candidate_config enforces ticket_id
-server-side. Live mode raises NotImplementedError — demo mode only.
+server-side.
+
+In demo mode (FIREPILOT_ENV=demo) tools return realistic fixture responses
+with no network calls. In live mode (FIREPILOT_ENV=live) tools execute real
+HTTP calls against the configured SCM API via SCMClient.
 """
 
 import time
@@ -15,6 +19,13 @@ from mcp_strata_cloud_manager.config import get_settings
 from mcp_strata_cloud_manager.fixtures.strata import (
     FIXTURE_JOB_ID,
     FIXTURE_JOB_TEMPLATE,
+)
+from mcp_strata_cloud_manager.scm_client import (
+    SCM_API_ERROR_CODE,
+    SCM_AUTH_FAILURE_CODE,
+    SCMAPIError,
+    SCMAuthError,
+    get_scm_client,
 )
 
 logger = structlog.get_logger(__name__)
@@ -87,52 +98,98 @@ def register_operations_tools(mcp: FastMCP) -> None:
                 }
             }
 
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            try:
+                scm_result = await client.push_candidate_config(folders, admin, description)
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="push_candidate_config",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=str(folders),
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=ticket_id,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="push_candidate_config",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=str(folders),
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=ticket_id,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": str(exc),
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="push_candidate_config",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=str(folders),
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=ticket_id,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                        "scm_request_id": exc.request_id,
+                        "scm_error_codes": exc.error_codes,
+                    }
+                }
 
-            # Demo mode: return a completed push fixture
-            result: dict[str, Any] = {
-                "job_id": FIXTURE_JOB_ID,
-                "status_str": "FIN",
-                "result_str": "OK",
-                "percent": "100",
-                "summary": "Commit and push completed successfully",
-                "details": "",
-            }
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="push_candidate_config",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=str(folders),
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=ticket_id,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return result
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="push_candidate_config",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=str(folders),
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=ticket_id,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+        # Demo mode: return a completed push fixture
+        result: dict[str, Any] = {
+            "job_id": FIXTURE_JOB_ID,
+            "status_str": "FIN",
+            "result_str": "OK",
+            "percent": "100",
+            "summary": "Commit and push completed successfully",
+            "details": "",
+        }
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="push_candidate_config",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=str(folders),
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=ticket_id,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return result
 
     @mcp.tool()
     async def get_job_status(
@@ -159,44 +216,90 @@ def register_operations_tools(mcp: FastMCP) -> None:
         endpoint = f"GET /config/operations/v1/jobs/{job_id}"
         start = time.monotonic()
 
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            try:
+                scm_result = await client.get_job_status(job_id)
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="get_job_status",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=None,
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="get_job_status",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=None,
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": str(exc),
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="get_job_status",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=None,
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                        "scm_request_id": exc.request_id,
+                        "scm_error_codes": exc.error_codes,
+                    }
+                }
 
-            # Demo mode: return a completed job fixture with the given job_id
-            job = dict(FIXTURE_JOB_TEMPLATE)
-            job["id"] = job_id
-            result: dict[str, Any] = {"data": [job]}
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="get_job_status",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=None,
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return result
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="get_job_status",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=None,
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+        # Demo mode: return a completed job fixture with the given job_id
+        job = dict(FIXTURE_JOB_TEMPLATE)
+        job["id"] = job_id
+        result: dict[str, Any] = {"data": [job]}
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="get_job_status",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=None,
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=None,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return result

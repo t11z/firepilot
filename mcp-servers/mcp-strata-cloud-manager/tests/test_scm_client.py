@@ -568,3 +568,481 @@ class TestAllReadEndpoints:
 
         called_url = client_with_valid_token._http.get.call_args.args[0]
         assert "/config/objects/v1/address-groups" in called_url
+
+
+# ---------------------------------------------------------------------------
+# _post() tests
+# ---------------------------------------------------------------------------
+
+
+_CREATED_RULE_BODY: dict[str, Any] = {
+    "id": "rule-id-001",
+    "name": "allow-web",
+    "folder": "Shared",
+    "action": "allow",
+}
+
+
+class TestPostMethod:
+    """_post() sends the correct HTTP POST request and handles errors."""
+
+    async def test_correct_url(self, client_with_valid_token: SCMClient) -> None:
+        """POST URL is constructed from api_base_url + the endpoint path."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token._post(
+            "test_tool",
+            "/config/security/v1/security-rules",
+            json_body={"name": "rule"},
+        )
+
+        called_url = client_with_valid_token._http.post.call_args.args[0]
+        assert called_url == "https://api.example.com/config/security/v1/security-rules"
+
+    async def test_authorization_header_is_bearer_token(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """Authorization header uses the Bearer scheme with the cached token."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token._post(
+            "test_tool",
+            "/config/security/v1/security-rules",
+            json_body={"name": "rule"},
+        )
+
+        headers = client_with_valid_token._http.post.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer pre-cached-token"
+
+    async def test_json_body_passed_to_post(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """The json_body dict is passed as the json kwarg to httpx.post."""
+        body = {"name": "my-rule", "action": "allow"}
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token._post(
+            "test_tool",
+            "/config/security/v1/security-rules",
+            json_body=body,
+        )
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert sent_json == body
+
+    async def test_query_params_with_none_excluded(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """None-valued query params are not sent in the query string."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token._post(
+            "test_tool",
+            "/config/security/v1/security-rules",
+            json_body={"name": "rule"},
+            folder="Shared",
+            position=None,
+        )
+
+        params = client_with_valid_token._http.post.call_args.kwargs["params"]
+        assert "folder" in params
+        assert "position" not in params
+
+    async def test_query_params_included_when_provided(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """Non-None query params are included in the request."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token._post(
+            "test_tool",
+            "/config/security/v1/security-rules",
+            json_body={"name": "rule"},
+            folder="MyFolder",
+            position="pre",
+        )
+
+        params = client_with_valid_token._http.post.call_args.kwargs["params"]
+        assert params["folder"] == "MyFolder"
+        assert params["position"] == "pre"
+
+    async def test_returns_scm_result_on_success(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A 201 response is returned as an SCMResult with the parsed JSON body."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(
+                201, _CREATED_RULE_BODY, request_id_header="req-post-abc"
+            )
+        )
+
+        result = await client_with_valid_token._post(
+            "test_tool",
+            "/config/security/v1/security-rules",
+            json_body={"name": "rule"},
+        )
+
+        assert isinstance(result, SCMResult)
+        assert result.data == _CREATED_RULE_BODY
+        assert result.http_status == 201
+        assert result.scm_request_id == "req-post-abc"
+
+    async def test_non_2xx_raises_scm_api_error(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A 4xx response raises SCMAPIError with the correct http_status."""
+        error_body = {
+            "_errors": [{"code": "E006", "message": "Name not unique"}],
+            "_request_id": "req-409",
+        }
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(409, error_body, is_success=False)
+        )
+
+        with pytest.raises(SCMAPIError) as exc_info:
+            await client_with_valid_token._post(
+                "test_tool",
+                "/config/security/v1/security-rules",
+                json_body={"name": "rule"},
+            )
+
+        exc = exc_info.value
+        assert exc.http_status == 409
+        assert "E006" in exc.error_codes
+        assert exc.request_id == "req-409"
+
+    async def test_network_error_raises_scm_api_error_with_none_status(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A network-level exception is wrapped in SCMAPIError with http_status=None."""
+        client_with_valid_token._http.post = AsyncMock(
+            side_effect=httpx.ConnectError("Network unreachable")
+        )
+
+        with pytest.raises(SCMAPIError) as exc_info:
+            await client_with_valid_token._post(
+                "test_tool",
+                "/config/security/v1/security-rules",
+                json_body={"name": "rule"},
+            )
+
+        assert exc_info.value.http_status is None
+
+
+# ---------------------------------------------------------------------------
+# create_security_rule() tests
+# ---------------------------------------------------------------------------
+
+
+class TestCreateSecurityRule:
+    """create_security_rule sends the correct POST request."""
+
+    async def test_correct_endpoint_path(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """create_security_rule targets /config/security/v1/security-rules."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token.create_security_rule("Shared", {"name": "rule"})
+
+        called_url = client_with_valid_token._http.post.call_args.args[0]
+        assert "/config/security/v1/security-rules" in called_url
+
+    async def test_folder_in_query_params(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """folder is sent as a query parameter, not in the body."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token.create_security_rule("MyFolder", {"name": "rule"})
+
+        params = client_with_valid_token._http.post.call_args.kwargs["params"]
+        assert params["folder"] == "MyFolder"
+
+    async def test_position_in_query_params(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """position is sent as a query parameter with the provided value."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token.create_security_rule(
+            "Shared", {"name": "rule"}, position="post"
+        )
+
+        params = client_with_valid_token._http.post.call_args.kwargs["params"]
+        assert params["position"] == "post"
+
+    async def test_default_position_is_pre(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """Default position is 'pre' when not explicitly provided."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token.create_security_rule("Shared", {"name": "rule"})
+
+        params = client_with_valid_token._http.post.call_args.kwargs["params"]
+        assert params["position"] == "pre"
+
+    async def test_rule_body_passed_as_json(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """The rule_body dict is sent as the POST JSON body unchanged."""
+        rule_body = {
+            "name": "allow-web",
+            "from": ["untrust"],
+            "to": ["trust"],
+            "action": "allow",
+        }
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        await client_with_valid_token.create_security_rule("Shared", rule_body)
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert sent_json == rule_body
+
+    async def test_returns_scm_result(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A 201 response is returned as an SCMResult."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _CREATED_RULE_BODY)
+        )
+
+        result = await client_with_valid_token.create_security_rule(
+            "Shared", {"name": "rule"}
+        )
+
+        assert isinstance(result, SCMResult)
+        assert result.data == _CREATED_RULE_BODY
+
+
+# ---------------------------------------------------------------------------
+# push_candidate_config() tests
+# ---------------------------------------------------------------------------
+
+
+_PUSH_RESPONSE_BODY: dict[str, Any] = {"id": "push-job-001", "job_status": "FIN"}
+
+
+class TestPushCandidateConfig:
+    """push_candidate_config sends the correct POST request."""
+
+    async def test_correct_endpoint_path(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """push_candidate_config targets the candidate:push endpoint."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(["Shared"])
+
+        called_url = client_with_valid_token._http.post.call_args.args[0]
+        assert "/config/operations/v1/config-versions/candidate:push" in called_url
+
+    async def test_folders_mapped_to_folder_in_body(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """The folders list is serialised as 'folder' in the request body."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(["Shared", "Corp"])
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert sent_json["folder"] == ["Shared", "Corp"]
+
+    async def test_admin_included_when_provided(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """admin is included in the body when provided."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(
+            ["Shared"], admin=["admin-user"]
+        )
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert sent_json["admin"] == ["admin-user"]
+
+    async def test_admin_excluded_when_none(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """admin is excluded from the body when None (required for 'All' folder push)."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(["Shared"], admin=None)
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert "admin" not in sent_json
+
+    async def test_description_included_when_provided(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """description is included in the body when provided."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(
+            ["Shared"], description="Deploy new rules"
+        )
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert sent_json["description"] == "Deploy new rules"
+
+    async def test_description_excluded_when_none(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """description is excluded from the body when None."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(["Shared"])
+
+        sent_json = client_with_valid_token._http.post.call_args.kwargs["json"]
+        assert "description" not in sent_json
+
+    async def test_no_query_params_sent(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """push_candidate_config does not send any query parameters."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.push_candidate_config(["Shared"])
+
+        params = client_with_valid_token._http.post.call_args.kwargs["params"]
+        assert params == {}
+
+    async def test_returns_scm_result(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A 201 response is returned as an SCMResult."""
+        client_with_valid_token._http.post = AsyncMock(
+            return_value=_make_http_response(201, _PUSH_RESPONSE_BODY)
+        )
+
+        result = await client_with_valid_token.push_candidate_config(["Shared"])
+
+        assert isinstance(result, SCMResult)
+        assert result.data == _PUSH_RESPONSE_BODY
+
+
+# ---------------------------------------------------------------------------
+# get_job_status() tests
+# ---------------------------------------------------------------------------
+
+
+_JOB_RESPONSE_BODY: dict[str, Any] = {
+    "data": [
+        {
+            "id": "job-001",
+            "status_str": "FIN",
+            "result_str": "OK",
+            "percent": 100,
+        }
+    ]
+}
+
+
+class TestGetJobStatus:
+    """get_job_status sends the correct GET request."""
+
+    async def test_correct_endpoint_path_with_job_id(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """get_job_status targets /config/operations/v1/jobs/{job_id}."""
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(200, _JOB_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.get_job_status("job-abc-123")
+
+        called_url = client_with_valid_token._http.get.call_args.args[0]
+        assert "/config/operations/v1/jobs/job-abc-123" in called_url
+
+    async def test_no_folder_query_param(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """get_job_status does not send a folder query parameter."""
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(200, _JOB_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.get_job_status("job-001")
+
+        params = client_with_valid_token._http.get.call_args.kwargs["params"]
+        assert "folder" not in params
+
+    async def test_authorization_header_present(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """Authorization header is present with the Bearer token."""
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(200, _JOB_RESPONSE_BODY)
+        )
+
+        await client_with_valid_token.get_job_status("job-001")
+
+        headers = client_with_valid_token._http.get.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer pre-cached-token"
+
+    async def test_returns_scm_result(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A 200 response is returned as an SCMResult."""
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(200, _JOB_RESPONSE_BODY)
+        )
+
+        result = await client_with_valid_token.get_job_status("job-001")
+
+        assert isinstance(result, SCMResult)
+        assert result.data == _JOB_RESPONSE_BODY
+
+    async def test_404_raises_scm_api_error(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """A 404 response (E005) raises SCMAPIError."""
+        error_body = {
+            "_errors": [{"code": "E005", "message": "Object not present"}],
+            "_request_id": "req-404-job",
+        }
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(404, error_body, is_success=False)
+        )
+
+        with pytest.raises(SCMAPIError) as exc_info:
+            await client_with_valid_token.get_job_status("nonexistent-job")
+
+        exc = exc_info.value
+        assert exc.http_status == 404
+        assert "E005" in exc.error_codes

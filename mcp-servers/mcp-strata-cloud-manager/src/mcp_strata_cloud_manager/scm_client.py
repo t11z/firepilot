@@ -199,7 +199,7 @@ class SCMClient:
         self,
         tool_name: str,
         endpoint_path: str,
-        folder: str,
+        folder: str | None = None,
         **params: Any,  # Any: SCM query params are mixed types (str | int | None)
     ) -> SCMResult:
         """Execute an authenticated GET request against the SCM API.
@@ -211,7 +211,9 @@ class SCMClient:
             tool_name: MCP tool name, included in structured log entries per
                        ADR-0004 tool call logging contract.
             endpoint_path: SCM API path (e.g. '/config/network/v1/zones').
-            folder: Folder scope query parameter (required by all read endpoints).
+            folder: Folder scope query parameter. Required by all read endpoints;
+                    may be None for endpoints where folder is not a query param
+                    (e.g. job status lookups where the id is in the path).
             **params: Additional query parameters. None values are omitted from
                       the request so optional params don't pollute the query string.
 
@@ -227,7 +229,9 @@ class SCMClient:
         token = await self._ensure_token()
         url = f"{self._settings.scm_api_base_url}{endpoint_path}"
         # Any: httpx accepts str | int | float | bool for query params
-        query_params: dict[str, Any] = {"folder": folder}
+        query_params: dict[str, Any] = {}
+        if folder is not None:
+            query_params["folder"] = folder
         for key, value in params.items():
             if value is not None:
                 query_params[key] = value
@@ -297,6 +301,124 @@ class SCMClient:
                 "scm_api_call",
                 tool_name=tool_name,
                 scm_endpoint=f"GET {endpoint_path}",
+                folder=folder,
+                outcome="failure",
+                http_status=None,
+                duration_ms=duration_ms,
+                scm_request_id=None,
+                error_codes=[],
+            )
+            raise SCMAPIError(
+                message=f"SCM API request failed: {exc}",
+                http_status=None,
+                request_id=None,
+                error_codes=[],
+            ) from exc
+
+    async def _post(
+        self,
+        tool_name: str,
+        endpoint_path: str,
+        json_body: dict[str, Any],  # Any: request body is untyped JSON for external API
+        **query_params: Any,  # Any: SCM query params are mixed types (str | int | None)
+    ) -> SCMResult:
+        """Execute an authenticated POST request against the SCM API.
+
+        Ensures a valid token before sending the request. On non-2xx responses,
+        extracts _errors and _request_id from the body and raises SCMAPIError.
+
+        Args:
+            tool_name: MCP tool name, included in structured log entries per
+                       ADR-0004 tool call logging contract.
+            endpoint_path: SCM API path (e.g. '/config/security/v1/security-rules').
+            json_body: Request body serialised as JSON. Must not contain credential
+                       values.
+            **query_params: Query parameters. None values are omitted from the
+                            request so optional params don't pollute the query string.
+
+        Returns:
+            SCMResult containing the parsed JSON body, HTTP status, and the
+            value of the X-Request-Id response header.
+
+        Raises:
+            SCMAuthError: If a valid token cannot be acquired.
+            SCMAPIError: If the SCM API returns a non-2xx status, or on network
+                         failure.
+        """
+        token = await self._ensure_token()
+        url = f"{self._settings.scm_api_base_url}{endpoint_path}"
+        # Any: httpx accepts str | int | float | bool for query params
+        params: dict[str, Any] = {
+            key: value for key, value in query_params.items() if value is not None
+        }
+        folder = query_params.get("folder")
+
+        start = time.monotonic()
+        try:
+            response = await self._http.post(
+                url,
+                params=params,
+                headers={"Authorization": f"Bearer {token}"},
+                json=json_body,
+            )
+            http_status = response.status_code
+            scm_request_id = response.headers.get("X-Request-Id")
+            duration_ms = int((time.monotonic() - start) * 1000)
+
+            if not response.is_success:
+                # Any: SCM error body is untyped JSON from the external API
+                error_body: dict[str, Any] = {}
+                try:
+                    error_body = response.json()
+                except Exception:
+                    pass
+                error_codes = [
+                    str(e.get("code", "")) for e in error_body.get("_errors", [])
+                ]
+                request_id = error_body.get("_request_id") or scm_request_id
+                logger.error(
+                    "scm_api_call",
+                    tool_name=tool_name,
+                    scm_endpoint=f"POST {endpoint_path}",
+                    folder=folder,
+                    outcome="failure",
+                    http_status=http_status,
+                    duration_ms=duration_ms,
+                    scm_request_id=request_id,
+                    error_codes=error_codes,
+                )
+                raise SCMAPIError(
+                    message=f"SCM API returned HTTP {http_status}",
+                    http_status=http_status,
+                    request_id=request_id,
+                    error_codes=error_codes,
+                )
+
+            logger.info(
+                "scm_api_call",
+                tool_name=tool_name,
+                scm_endpoint=f"POST {endpoint_path}",
+                folder=folder,
+                outcome="success",
+                http_status=http_status,
+                duration_ms=duration_ms,
+                scm_request_id=scm_request_id,
+                error_codes=[],
+            )
+            return SCMResult(
+                data=response.json(),
+                http_status=http_status,
+                scm_request_id=scm_request_id,
+            )
+
+        except (SCMAuthError, SCMAPIError):
+            raise
+        except Exception as exc:
+            duration_ms = int((time.monotonic() - start) * 1000)
+            logger.error(
+                "scm_api_call",
+                tool_name=tool_name,
+                scm_endpoint=f"POST {endpoint_path}",
                 folder=folder,
                 outcome="failure",
                 http_status=None,
@@ -404,6 +526,100 @@ class SCMClient:
         """
         return await self._get(
             "list_address_groups", "/config/objects/v1/address-groups", folder, **params
+        )
+
+    async def create_security_rule(
+        self,
+        folder: str,
+        rule_body: dict[str, Any],  # Any: rule fields are untyped JSON for external API
+        position: str = "pre",
+    ) -> SCMResult:
+        """Create a security rule in SCM candidate configuration.
+
+        Maps to: POST /config/security/v1/security-rules
+
+        The caller is responsible for mapping Python parameter names to SCM API
+        field names before passing rule_body (e.g. from_zones → 'from',
+        to_zones → 'to').
+
+        Args:
+            folder: Folder scope query parameter (required, max 64 chars).
+            rule_body: Request body dict with SCM field names. Must include all
+                       required fields per the SCM API contract.
+            position: Rule position query parameter, 'pre' or 'post'. Default 'pre'.
+
+        Returns:
+            SCMResult with the created rule object including server-assigned id.
+
+        Raises:
+            SCMAuthError: On token acquisition failure.
+            SCMAPIError: On HTTP error or network failure.
+        """
+        return await self._post(
+            "create_security_rule",
+            "/config/security/v1/security-rules",
+            json_body=rule_body,
+            folder=folder,
+            position=position,
+        )
+
+    async def push_candidate_config(
+        self,
+        folders: list[str],
+        admin: list[str] | None = None,
+        description: str | None = None,
+    ) -> SCMResult:
+        """Push candidate configuration to running configuration on devices.
+
+        Maps to: POST /config/operations/v1/config-versions/candidate:push
+
+        The 'admin' field is omitted from the request body when None. Per the
+        official SCM docs, omitting admin is required when pushing the 'All' folder.
+
+        Args:
+            folders: List of folder names to push (mapped to 'folder' in body).
+            admin: Optional list of admin or service account names. Omit when
+                   pushing the 'All' folder.
+            description: Optional description recorded on the resulting job.
+
+        Returns:
+            SCMResult with the job response from the SCM API. The 201 response
+            schema is not documented; the full body is returned for inspection.
+
+        Raises:
+            SCMAuthError: On token acquisition failure.
+            SCMAPIError: On HTTP error or network failure.
+        """
+        body: dict[str, Any] = {"folder": folders}
+        if admin is not None:
+            body["admin"] = admin
+        if description is not None:
+            body["description"] = description
+        return await self._post(
+            "push_candidate_config",
+            "/config/operations/v1/config-versions/candidate:push",
+            json_body=body,
+        )
+
+    async def get_job_status(self, job_id: str) -> SCMResult:
+        """Retrieve the status of an SCM job by its ID.
+
+        Maps to: GET /config/operations/v1/jobs/{id}
+
+        Args:
+            job_id: The SCM job identifier to query (path parameter).
+
+        Returns:
+            SCMResult with {"data": [<Job object>]} matching the ADR-0004 schema.
+
+        Raises:
+            SCMAuthError: On token acquisition failure.
+            SCMAPIError: On HTTP error or network failure. E005 (object not
+                         present) is raised as SCMAPIError on 404.
+        """
+        return await self._get(
+            "get_job_status",
+            f"/config/operations/v1/jobs/{job_id}",
         )
 
 
