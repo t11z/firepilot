@@ -3,6 +3,10 @@
 This file defines roles, responsibilities, constraints, and working conventions
 for all Claude instances operating in this repository.
 
+It contains **timeless rules** — not the current state of the project. For
+architectural decisions and their rationale, read the ADRs in `docs/adr/`.
+For project narrative and demo instructions, see `README.md`.
+
 ---
 
 ## Role Definitions
@@ -68,33 +72,6 @@ Do not ask open-ended questions — present a decision for the Lead Architect to
 
 ---
 
-## Repository Structure
-
-```
-firepilot/
-├── CLAUDE.md                        # This file
-├── README.md                        # Project narrative and demo instructions
-├── docs/
-│   ├── adr/                         # Architecture Decision Records (ADR-0000+)
-│   │   └── ADR-TEMPLATE.md          # Template for new ADRs
-│   ├── architecture.md              # C4 diagram (Mermaid)
-│   └── threat-model.md              # Security boundary documentation
-├── mcp-servers/
-│   ├── mcp-strata/                  # Firewall API abstraction (Palo Alto SCM)
-│   └── mcp-itsm/                    # Ticket and audit trail (ServiceNow / Jira)
-├── web-ui/                          # FastAPI backend + frontend
-├── firewall-configs/                # Declarative YAML firewall configurations
-├── prompts/                         # Claude system prompts, versioned
-│   └── examples/                    # Annotated prompt examples
-├── ci/                              # GitHub Actions workflows
-└── demo/                            # Mock layer and local demo setup
-    └── docker-compose.yml
-```
-
-When in doubt about where a new file belongs, escalate rather than guess.
-
----
-
 ## Mock-First Principle
 
 FirePilot has no always-on infrastructure. Every integration must be demo-able
@@ -102,7 +79,7 @@ without live credentials or external APIs.
 
 Rules:
 - All MCP server tools must have a mock implementation before a real one
-- Mocks live in `demo/` and are activated via environment variable (`FIREPILOT_ENV=demo`)
+- Mocks are activated via environment variable (`FIREPILOT_ENV=demo`)
 - Mock responses must be realistic fixtures — not empty stubs
 - The demo scenario defined in `README.md` must remain fully executable at all times
 
@@ -118,10 +95,10 @@ Do not remove or degrade mocks when adding real integrations.
 | Component | Language |
 |---|---|
 | MCP Servers | Python 3.12+ |
-| Web UI Backend | Python 3.12+ (FastAPI) |
 | CI Scripts | Python or Bash |
+| GitHub Actions Orchestration | Python 3.12+ |
 | Declarative Configs | YAML |
-| Infrastructure | Terraform (if applicable) |
+| Policy Validation | Rego (OPA) |
 
 TypeScript is not used unless an ADR explicitly approves it for a specific component.
 
@@ -140,7 +117,7 @@ TypeScript is not used unless an ADR explicitly approves it for a specific compo
 
 ### Logging
 
-- Use structured logging (`structlog` or equivalent) — no `print()` in production paths
+- Use structured logging (`structlog`) — no `print()` in production paths
 - Every MCP tool call must log: tool name, input summary, outcome, and duration
 - Log entries are the audit trail — treat them accordingly
 
@@ -154,7 +131,6 @@ a trivial cosmetic edit.
 | Change type | Required coverage |
 |---|---|
 | New MCP tool | Unit test for happy path + at least two error cases |
-| New API endpoint | Integration test with mock dependencies |
 | Policy/validation logic | Parameterized tests covering boundary conditions |
 | Bug fix | Regression test that would have caught the original bug |
 | Prompt change | Manual evaluation against the example set in `prompts/examples/` |
@@ -194,7 +170,8 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 Types: `feat`, `fix`, `docs`, `test`, `refactor`, `ci`, `chore`
-Scope: component name (`mcp-strata`, `web-ui`, `ci`, `prompts`, etc.)
+
+Scope: component name (`mcp-strata`, `mcp-itsm`, `ci`, `prompts`, `configs`, etc.)
 
 Examples:
 ```
