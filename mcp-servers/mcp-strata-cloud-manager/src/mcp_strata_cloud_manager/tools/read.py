@@ -2,8 +2,11 @@
 
 Exposes list_security_rules, list_security_zones, list_addresses,
 and list_address_groups as MCP tools mapped to SCM read API endpoints.
-All tools operate in demo mode from fixture data; live mode raises
-NotImplementedError.
+
+In demo mode (FIREPILOT_ENV=demo) all tools return realistic fixture responses
+with no network calls. In live mode (FIREPILOT_ENV=live) all tools execute
+real HTTP calls against the configured SCM API via SCMClient (scm_client.py),
+which is the sole credential boundary for token acquisition and HTTP transport.
 """
 
 import time
@@ -19,6 +22,13 @@ from mcp_strata_cloud_manager.fixtures.strata import (
     FIXTURE_SECURITY_RULES_POST,
     FIXTURE_SECURITY_RULES_PRE,
     FIXTURE_SECURITY_ZONES,
+)
+from mcp_strata_cloud_manager.scm_client import (
+    SCMAPIError,
+    SCMAuthError,
+    SCM_AUTH_FAILURE_CODE,
+    SCM_API_ERROR_CODE,
+    get_scm_client,
 )
 
 logger = structlog.get_logger(__name__)
@@ -80,48 +90,97 @@ def register_read_tools(mcp: FastMCP) -> None:
         settings = get_settings()
         endpoint = "GET /config/security/v1/security-rules"
         start = time.monotonic()
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
-            rules = (
-                FIXTURE_SECURITY_RULES_PRE
-                if position == "pre"
-                else FIXTURE_SECURITY_RULES_POST
-            )
-            result = _apply_filters(rules, name, limit, offset)
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="list_security_rules",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return result
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="list_security_rules",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            try:
+                scm_result = await client.list_security_rules(
+                    folder, name=name, limit=limit, offset=offset, position=position
+                )
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="list_security_rules",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_security_rules",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": "SCM authentication failed",
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_security_rules",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                    }
+                }
+
+        # Demo mode: return fixture data
+        rules = (
+            FIXTURE_SECURITY_RULES_PRE
+            if position == "pre"
+            else FIXTURE_SECURITY_RULES_POST
+        )
+        result = _apply_filters(rules, name, limit, offset)
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="list_security_rules",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=folder,
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=None,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return result
 
     @mcp.tool()
     async def list_security_zones(
@@ -146,43 +205,92 @@ def register_read_tools(mcp: FastMCP) -> None:
         settings = get_settings()
         endpoint = "GET /config/network/v1/zones"
         start = time.monotonic()
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
-            result = _apply_filters(FIXTURE_SECURITY_ZONES, name, limit, offset)
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="list_security_zones",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return result
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="list_security_zones",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            try:
+                scm_result = await client.list_security_zones(
+                    folder, name=name, limit=limit, offset=offset
+                )
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="list_security_zones",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_security_zones",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": "SCM authentication failed",
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_security_zones",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                    }
+                }
+
+        # Demo mode: return fixture data
+        result = _apply_filters(FIXTURE_SECURITY_ZONES, name, limit, offset)
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="list_security_zones",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=folder,
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=None,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return result
 
     @mcp.tool()
     async def list_addresses(
@@ -207,43 +315,92 @@ def register_read_tools(mcp: FastMCP) -> None:
         settings = get_settings()
         endpoint = "GET /config/objects/v1/addresses"
         start = time.monotonic()
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
-            result = _apply_filters(FIXTURE_ADDRESSES, name, limit, offset)
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="list_addresses",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return result
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="list_addresses",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            try:
+                scm_result = await client.list_addresses(
+                    folder, name=name, limit=limit, offset=offset
+                )
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="list_addresses",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_addresses",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": "SCM authentication failed",
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_addresses",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                    }
+                }
+
+        # Demo mode: return fixture data
+        result = _apply_filters(FIXTURE_ADDRESSES, name, limit, offset)
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="list_addresses",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=folder,
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=None,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return result
 
     @mcp.tool()
     async def list_address_groups(
@@ -268,40 +425,89 @@ def register_read_tools(mcp: FastMCP) -> None:
         settings = get_settings()
         endpoint = "GET /config/objects/v1/address-groups"
         start = time.monotonic()
-        try:
-            if settings.firepilot_env == "live":
-                raise NotImplementedError("Live mode not yet implemented")
-            result = _apply_filters(FIXTURE_ADDRESS_GROUPS, name, limit, offset)
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.info(
-                "tool_call",
-                tool_name="list_address_groups",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="success",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            return result
-        except NotImplementedError:
-            duration_ms = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "tool_call",
-                tool_name="list_address_groups",
-                mode=settings.firepilot_env,
-                scm_endpoint=endpoint,
-                folder=folder,
-                outcome="failure",
-                http_status=None,
-                duration_ms=duration_ms,
-                ticket_id=None,
-                rejection_code=None,
-                scm_request_id=None,
-                error_codes=[],
-            )
-            raise
+
+        if settings.firepilot_env == "live":
+            client = get_scm_client()
+            try:
+                scm_result = await client.list_address_groups(
+                    folder, name=name, limit=limit, offset=offset
+                )
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.info(
+                    "tool_call",
+                    tool_name="list_address_groups",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="success",
+                    http_status=scm_result.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=scm_result.scm_request_id,
+                    error_codes=[],
+                )
+                return scm_result.data
+            except SCMAuthError:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_address_groups",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=None,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=None,
+                    error_codes=[],
+                )
+                return {
+                    "error": {
+                        "code": SCM_AUTH_FAILURE_CODE,
+                        "message": "SCM authentication failed",
+                    }
+                }
+            except SCMAPIError as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                logger.error(
+                    "tool_call",
+                    tool_name="list_address_groups",
+                    mode=settings.firepilot_env,
+                    scm_endpoint=endpoint,
+                    folder=folder,
+                    outcome="failure",
+                    http_status=exc.http_status,
+                    duration_ms=duration_ms,
+                    ticket_id=None,
+                    rejection_code=None,
+                    scm_request_id=exc.request_id,
+                    error_codes=exc.error_codes,
+                )
+                return {
+                    "error": {
+                        "code": SCM_API_ERROR_CODE,
+                        "message": str(exc),
+                    }
+                }
+
+        # Demo mode: return fixture data
+        result = _apply_filters(FIXTURE_ADDRESS_GROUPS, name, limit, offset)
+        duration_ms = int((time.monotonic() - start) * 1000)
+        logger.info(
+            "tool_call",
+            tool_name="list_address_groups",
+            mode=settings.firepilot_env,
+            scm_endpoint=endpoint,
+            folder=folder,
+            outcome="success",
+            http_status=None,
+            duration_ms=duration_ms,
+            ticket_id=None,
+            rejection_code=None,
+            scm_request_id=None,
+            error_codes=[],
+        )
+        return result
