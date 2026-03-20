@@ -349,11 +349,14 @@ firepilot/
 │   ├── ISSUE_TEMPLATE/
 │   │   └── firewall-change-request.yml    # Structured intake form (ADR-0009)
 │   ├── workflows/
+│   │   ├── approve-and-commit.yml         # Approval → commit → PR (firepilot:approved)
 │   │   ├── process-firewall-request.yml   # Issue → Claude processing
 │   │   ├── validate.yml                   # PR validation (Gates 1–3)
 │   │   └── deploy.yml                     # Merge deployment (Gates 1–4)
 │   └── scripts/
-│       └── process_firewall_request.py    # Issue processing entrypoint
+│       ├── process_firewall_request.py    # Issue processing entrypoint
+│       ├── extract_yaml_from_comment.py   # YAML extraction from issue comments
+│       └── update_rulebase_manifest.py    # _rulebase.yaml manifest update
 ├── mcp-servers/
 │   ├── mcp-strata-cloud-manager/          # SCM API integration (ADR-0004)
 │   └── mcp-itsm/                          # ITSM integration (ADR-0005)
