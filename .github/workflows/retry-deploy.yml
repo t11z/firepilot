@@ -1,0 +1,117 @@
+name: Retry Failed Deployment
+on:
+  issues:
+    types:
+      - labeled
+jobs:
+  retry-deploy:
+    name: Retry deployment for failed change request
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'firepilot:retry-deploy'
+    permissions:
+      contents: read
+      issues: write
+    env:
+      FIREPILOT_ENV: ${{ vars.FIREPILOT_ENV || 'demo' }}
+      SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
+      SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
+      SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
+      ITSM_GITHUB_TOKEN: ${{ secrets.ITSM_GITHUB_TOKEN }}
+      ITSM_GITHUB_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install requests anthropic PyYAML
+          pip install ./mcp-servers/mcp-strata-cloud-manager
+          pip install ./mcp-servers/mcp-itsm
+      # Find the merge commit associated with this issue.
+      # The process-firewall-request workflow creates branches named
+      # firepilot/issue-{N}-{rule-name}. Find the merge commit for
+      # that branch on main.
+      - name: Locate merge commit
+        id: find-commit
+        run: |
+          ISSUE_NUM="${{ env.ISSUE_NUMBER }}"
+          # Search git log for merge commits referencing this issue
+          # Pattern: branch name contains "issue-{N}"
+          MERGE_SHA=$(git log --oneline --merges main \
+            | grep -i "issue.${ISSUE_NUM}" \
+            | head -1 \
+            | awk '{print $1}')
+          if [ -z "$MERGE_SHA" ]; then
+            # Fallback: search commit messages for the issue number
+            MERGE_SHA=$(git log --oneline main \
+              | grep "#${ISSUE_NUM}\b" \
+              | head -1 \
+              | awk '{print $1}')
+          fi
+          if [ -z "$MERGE_SHA" ]; then
+            echo "ERROR: Could not find merge commit for issue #${ISSUE_NUM}"
+            gh issue comment "$ISSUE_NUM" \
+              --repo "$REPO" \
+              --body "**FirePilot Retry Failed**: Could not locate the merge commit associated with this issue. Manual intervention required."
+            exit 1
+          fi
+          echo "sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Found merge commit: $MERGE_SHA"
+      # Identify which firewall-config files were changed in that commit
+      - name: Identify changed config files
+        id: changed-files
+        run: |
+          SHA="${{ steps.find-commit.outputs.sha }}"
+          # List files changed in the merge commit under firewall-configs/
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r "$SHA" \
+            -- 'firewall-configs/' \
+            | grep '\.yaml$' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No firewall-config YAML files found in commit $SHA"
+            gh issue comment "${{ env.ISSUE_NUMBER }}" \
+              --repo "$REPO" \
+              --body "**FirePilot Retry Failed**: No firewall configuration changes found in commit \`${SHA}\`. Nothing to deploy."
+            exit 1
+          fi
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"
+          echo "$CHANGED"
+      # Run the retry deployment script
+      - name: Execute retry deployment
+        id: retry
+        run: |
+          python ci/scripts/retry-deploy.py \
+            --config-dir firewall-configs/ \
+            --ticket-id "${{ env.ISSUE_NUMBER }}"
+        continue-on-error: true
+      # Update issue based on result
+      - name: Handle success
+        if: steps.retry.outcome == 'success'
+        run: |
+          ISSUE_NUM="${{ env.ISSUE_NUMBER }}"
+          # Remove retry-deploy label, set deployed
+          gh issue edit "$ISSUE_NUM" \
+            --repo "$REPO" \
+            --remove-label "firepilot:retry-deploy" \
+            --remove-label "firepilot:failed" \
+            --add-label "firepilot:deployed"
+          gh issue comment "$ISSUE_NUM" \
+            --repo "$REPO" \
+            --body "**FirePilot Retry Succeeded**: Deployment completed successfully on retry. Label updated to \`firepilot:deployed\`."
+      - name: Handle failure
+        if: steps.retry.outcome == 'failure'
+        run: |
+          ISSUE_NUM="${{ env.ISSUE_NUMBER }}"
+          gh issue comment "$ISSUE_NUM" \
+            --repo "$REPO" \
+            --body "**FirePilot Retry Failed**: Deployment failed again on retry. The \`firepilot:retry-deploy\` label remains for manual investigation. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
