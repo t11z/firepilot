@@ -91,6 +91,8 @@ firepilot/
 
 **7. Deploy** — On merge, the configuration is pushed to Strata Cloud Manager via MCP, and the deployment result is recorded on the issue.
 
+**8. Drift detection** — A scheduled GitHub Actions workflow runs daily (configurable) to compare the Git-declared firewall rules against the live SCM state. If any `firepilot-managed` rules have been modified, deleted, or reordered outside of FirePilot, a GitHub Issue is created (or updated) with the full drift report.
+
 ---
 
 ## 🧪 Demo Mode
@@ -165,6 +167,7 @@ Every significant design choice is documented as an Architecture Decision Record
 | [ADR-0007](docs/adr/0007-declarative-firewall-configuration-yaml-schema.md) | Declarative YAML configuration schema |
 | [ADR-0008](docs/adr/0008-zone-topology-aware-policy-validation.md) | Zone topology-aware policy validation |
 | [ADR-0009](docs/adr/0009-github-issues-as-primary-firewall-change-request-interface.md) | GitHub Issues as change request interface |
+| [ADR-0011](docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md) | Drift detection and push retry |
 
 ---
 
