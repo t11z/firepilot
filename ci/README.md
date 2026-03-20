@@ -21,12 +21,13 @@ Reference: [ADR-0003 — CI/CD Pipeline Design and Policy Validation Toolchain](
 
 ## Pipeline Architecture
 
-Two workflow files implement the pipeline:
+Three workflow files implement the pipeline:
 
 | Workflow | Trigger | Gates |
 |---|---|---|
 | `.github/workflows/validate.yml` | Pull request targeting `main` | Gates 1–3 |
 | `.github/workflows/deploy.yml` | Push to `main` | Gates 1–3 (re-validation) + Gate 4 |
+| `.github/workflows/retry-deploy.yml` | Issue labeled `firepilot:retry-deploy` | Push retry (no validation re-run) |
 
 Gates execute sequentially. A failure at any gate blocks all subsequent gates.
 The deploy workflow re-runs Gates 1–3 before Gate 4 as a defense-in-depth measure —
@@ -114,6 +115,77 @@ Required environment variables (live mode):
 
 ---
 
+## Push Retry
+
+Reference: [ADR-0011 — Drift Detection Between Git State and SCM Live State](../docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md)
+
+---
+
+### When to use `firepilot:retry-deploy`
+
+When Gate 4 runs after a merge to `main` and the push step fails (device
+offline, SCM timeout, or SCM API error), the configuration rules exist in Git
+but are not live. The issue is set to `firepilot:failed`.
+
+Apply the `firepilot:retry-deploy` label to the **original change request issue**
+to re-trigger the deployment without creating a new PR. Gates 1–3 are **not**
+re-run — the configuration was already validated before the original merge.
+
+Do not create a new PR or issue. The retry workflow reads the merged configuration
+from the current state of `firewall-configs/` and re-attempts the push.
+
+### What the retry workflow does
+
+The retry workflow (`ci/scripts/retry-deploy.py`) implements Strategy B with
+conflict tolerance:
+
+1. **Re-creates each security rule** from `firewall-configs/` in manifest order
+   by calling `create_security_rule` on the SCM MCP server.
+2. **Tolerates E006 (Name Not Unique) conflicts** — if a rule already exists in
+   the candidate config from the failed Gate 4 run, the E006 error is treated as
+   success. Any other error aborts and records failure via ITSM.
+3. **Pushes the candidate config** for all affected folders via
+   `push_candidate_config`.
+4. **Polls `get_job_status`** every 10 seconds until the job reaches a terminal
+   state (`FIN`, `PUSHFAIL`, `PUSHABORT`, `PUSHTIMEOUT`).
+5. On `result_str=OK`: records `push_succeeded`, sets ITSM status to `deployed`,
+   removes `firepilot:retry-deploy` and `firepilot:failed` labels, adds
+   `firepilot:deployed`. Exit 0.
+6. On any other result: records `push_failed`, sets ITSM status to `failed`,
+   leaves `firepilot:retry-deploy` for manual investigation. Exit 1.
+
+This approach is idempotent: the retry succeeds whether or not the failed Gate 4
+run had written rules to candidate config before failing.
+
+### How to trigger a retry
+
+```bash
+# Using the GitHub CLI
+gh issue edit <issue-number> --add-label "firepilot:retry-deploy"
+```
+
+Or apply the label via the GitHub web interface on the original change request issue.
+
+### How to monitor the retry workflow run
+
+Navigate to **Actions → Retry Failed Deployment** in the repository. Each run
+corresponds to a label event on an issue. The issue will receive a comment
+indicating success or failure, with a link to the workflow run on failure.
+
+### Label setup (one-time operator step)
+
+The `firepilot:retry-deploy` label must be created in the repository before the
+workflow can use it:
+
+```bash
+gh label create "firepilot:retry-deploy" --color "E4E669" --description "Re-trigger deployment for a failed Gate 4 push"
+```
+
+No credentials appear in workflow logs or issue comments — SCM credentials are
+passed only via environment variables to the MCP subprocess (ADR-0006).
+
+---
+
 ## Running Locally
 
 ### Install dependencies
@@ -185,9 +257,11 @@ ci/
 ├── scripts/
 │   ├── build-opa-input.py       # Assembles OPA input JSON from a config directory
 │   ├── config_discovery.py      # Shared config discovery helpers (discover_rule_dirs, load_rule_files)
+│   ├── deploy_common.py         # Shared deployment logic (create_rules_from_config, push_and_poll)
 │   ├── drift-check.py           # Drift detection: compares Git config against live SCM state
 │   ├── mcp_connect.py           # Shared MCP server connection helper
 │   ├── process-issue.py         # Claude agentic loop for firewall change requests
+│   ├── retry-deploy.py          # Push retry: re-create rules + push, with E006 conflict tolerance
 │   ├── validate-all.sh          # Orchestrates Gates 1–3
 │   ├── gate3-dry-run.sh         # Gate 3: shell entry point (demo/live dispatch)
 │   ├── gate3-dry-run.py         # Gate 3: live validation via mcp-strata-cloud-manager
@@ -195,7 +269,8 @@ ci/
 │   ├── gate4-deploy.py          # Gate 4: live deployment via MCP servers
 │   ├── test_drift_check.py      # Pytest tests for drift-check.py
 │   ├── test_gate3_dry_run.py    # Pytest tests for gate3-dry-run.py
-│   └── test_gate4_deploy.py     # Pytest tests for gate4-deploy.py
+│   ├── test_gate4_deploy.py     # Pytest tests for gate4-deploy.py
+│   └── test_retry_deploy.py     # Pytest tests for retry-deploy.py
 └── fixtures/
     ├── firewall-configs/        # Valid fixture set (mirrors production layout)
     └── invalid/                 # Invalid fixtures for OPA policy testing

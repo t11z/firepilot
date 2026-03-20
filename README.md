@@ -89,7 +89,7 @@ firepilot/
 
 **6. Review and merge** — A human approver reviews the PR diff and CI results, then merges.
 
-**7. Deploy** — On merge, the configuration is pushed to Strata Cloud Manager via MCP, and the deployment result is recorded on the issue.
+**7. Deploy** — On merge, the configuration is pushed to Strata Cloud Manager via MCP, and the deployment result is recorded on the issue. If the push fails (device offline, timeout, or SCM error), the issue is labelled `firepilot:failed`. Operators can apply `firepilot:retry-deploy` to the original issue to re-attempt the push without creating a new PR — see [ci/README.md](ci/README.md#push-retry) for details.
 
 **8. Drift detection** — A scheduled GitHub Actions workflow runs daily (configurable) to compare the Git-declared firewall rules against the live SCM state. If any `firepilot-managed` rules have been modified, deleted, or reordered outside of FirePilot, a GitHub Issue is created (or updated) with the full drift report.
 
@@ -140,6 +140,7 @@ The full production workflow operates entirely within GitHub:
 5. **Config committed** — If the proposal is valid, the YAML is committed to a feature branch and a PR is opened against `main` automatically. If the request is rejected, `firepilot:rejected` is set and no PR is created.
 6. **PR validation** — `.github/workflows/validate.yml` runs Gates 1–3 on the PR.
 7. **Merge → deploy** — After PR merge, `.github/workflows/deploy.yml` re-runs Gates 1–3 then executes Gate 4: pushing the configuration to Strata Cloud Manager via `mcp-strata-cloud-manager` and recording the deployment result via `mcp-itsm`.
+8. **Push retry (if needed)** — If Gate 4 fails (device offline, SCM timeout), the issue is labelled `firepilot:failed`. An operator applies `firepilot:retry-deploy` to the original issue to trigger `.github/workflows/retry-deploy.yml`, which re-attempts the push without re-running Gates 1–3.
 
 The demo fixtures represent a four-tier network segmentation model (untrust → web → app → db), pre-configured security zones, address objects, and a baseline rulebase.
 

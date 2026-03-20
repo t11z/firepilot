@@ -16,7 +16,9 @@ _SCRIPTS_DIR = Path(__file__).parent
 
 _HYPHENATED_MODULES: dict[str, str] = {
     "gate3_dry_run": "gate3-dry-run.py",
+    "gate4_deploy": "gate4-deploy.py",
     "drift_check": "drift-check.py",
+    "retry_deploy": "retry-deploy.py",
 }
 
 
