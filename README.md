@@ -34,6 +34,8 @@ FirePilot compresses this into minutes by making the firewall configuration **de
                         └────────────────┘   └──────────────────┘   └─────────────┘
 ```
 
+For C4 diagrams, data model, and component details, see [docs/architecture.md](docs/architecture.md).
+
 ### Constraint Layers (Defense in Depth)
 
 FirePilot validates at every boundary — no single layer is trusted:
@@ -111,16 +113,7 @@ The demo fixtures represent a small enterprise environment with a four-tier netw
 
 ## 🛠️ Technology Stack
 
-| Component | Technology | Role |
-|-----------|-----------|------|
-| Orchestration | Claude API (Anthropic) | Intent parsing, config generation |
-| Integration | Model Context Protocol (MCP) | Decoupled tool interface |
-| Firewall API | Palo Alto Strata Cloud Manager | Target platform |
-| Policy Engine | Open Policy Agent (OPA) + Rego | CI/CD validation |
-| Config Format | YAML + JSON Schema | Declarative firewall rules |
-| CI/CD | GitHub Actions | Pipeline runtime |
-| Change Management | GitHub Issues | Request intake + audit trail |
-| Language | Python 3.12+ | MCP servers, scripts |
+See [Technology Stack](docs/architecture.md#10--technology-stack) in the architecture document for the full stack with rationale.
 
 ---
 
