@@ -264,6 +264,24 @@ flowchart TD
 Gates execute sequentially. Any failure blocks all subsequent gates.
 The deploy workflow re-runs Gates 1–3 as a defense-in-depth measure.
 
+### Drift Detection (ADR-0011)
+
+A scheduled GitHub Actions workflow (`drift-check.yml`) runs daily
+and compares the Git-declared configuration against live SCM state.
+The comparison connects to `mcp-strata-cloud-manager` via MCP stdio,
+fetches all `firepilot-managed` rules, and performs field-level
+comparison against the YAML files in `firewall-configs/`.
+
+Discrepancies are reported as GitHub Issues with the
+`firepilot:drift-detected` label. If an open drift issue already
+exists, the new report is appended as a comment.
+
+Failed deployments (Gate 4 push failure) can be retried by applying
+the `firepilot:retry-deploy` label to the original change request
+issue. The retry workflow re-creates rules with conflict tolerance
+(existing rules in candidate config are accepted) and re-attempts
+the push.
+
 ---
 
 ## 7 — MCP Tool Surface
@@ -351,6 +369,8 @@ firepilot/
 │   ├── ISSUE_TEMPLATE/
 │   │   └── firewall-change-request.yml    # Structured intake form (ADR-0009)
 │   ├── workflows/
+│   │   ├── drift-check.yml                # Scheduled drift detection (ADR-0010)
+│   │   ├── retry-deploy.yml               # Push retry for failed deployments (ADR-0010)
 │   │   ├── process-firewall-request.yml   # Issue → Claude processing → commit → PR
 │   │   ├── validate.yml                   # PR validation (Gates 1–3)
 │   │   └── deploy.yml                     # Merge deployment (Gates 1–4)
