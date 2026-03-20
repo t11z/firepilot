@@ -9,6 +9,45 @@ For project narrative and demo instructions, see `README.md`.
 
 ---
 
+## Repository Structure
+
+```
+firepilot/
+├── CLAUDE.md                          # This file
+├── README.md                          # Project narrative and demo instructions
+├── docs/
+│   ├── adr/                           # Architecture Decision Records (ADR-0000+)
+│   │   └── ADR-TEMPLATE.md            # Template for new ADRs
+│   ├── architecture.md                # C4 architecture diagrams and system overview
+│   └── threat-model.md                # Security boundary documentation
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   └── firewall-change-request.yml  # Structured intake form (ADR-0009)
+│   ├── workflows/
+│   │   ├── process-firewall-request.yml # Issue → Claude processing (ADR-0009)
+│   │   ├── validate.yml               # PR validation: Gates 1–3 (ADR-0003)
+│   │   └── deploy.yml                 # Merge deployment: Gates 1–4 (ADR-0003)
+│   └── scripts/
+│       └── process_firewall_request.py  # Issue processing entrypoint
+├── mcp-servers/
+│   ├── mcp-strata-cloud-manager/      # Firewall API abstraction (ADR-0004)
+│   └── mcp-itsm/                      # Change management and audit trail (ADR-0005)
+├── firewall-configs/                  # Declarative YAML firewall configurations (ADR-0007)
+│   ├── zones.yaml                     # Zone topology mapping (ADR-0008)
+│   └── {folder}/{position}/           # Rule directories
+├── prompts/                           # Claude system prompts, versioned
+│   └── examples/                      # Annotated prompt examples
+├── ci/                                # Validation toolchain (ADR-0003)
+│   ├── schemas/                       # JSON Schemas for config validation
+│   ├── policies/                      # OPA Rego policies + tests
+│   ├── scripts/                       # Gate scripts
+│   └── fixtures/                      # Test fixtures (valid + invalid)
+└── demo/                              # Mock layer and local demo setup
+    └── docker-compose.yml
+```
+
+---
+
 ## Role Definitions
 
 ### Claude (Senior Lead Architect)
@@ -153,6 +192,16 @@ Rules:
 
 If a change makes existing documentation incorrect, update the documentation
 in the same PR — not in a follow-up.
+
+### PR Documentation Checklist
+
+Before marking a PR as ready for review, Claude Code must verify:
+
+- [ ] If the PR changes files under `mcp-servers/`, `ci/`, `firewall-configs/`, `.github/workflows/`, or `prompts/`: does `docs/architecture.md` need updating? If yes, include the update in this PR.
+- [ ] If the PR changes the demo scenario or any user-facing workflow: does `README.md` still accurately describe the behavior? If not, update it.
+- [ ] If the PR adds, removes, or renames a component or directory: does the repository structure in this file (`CLAUDE.md`) still match? If not, flag it to the Lead Architect.
+
+This checklist is a gate — not a suggestion. A PR that knowingly leaves documentation stale must not be opened.
 
 ---
 
