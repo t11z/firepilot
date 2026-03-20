@@ -1,0 +1,55 @@
+# FirePilot — Firewall Change Request Processing Workflow
+#
+# Required repository secrets:
+#   ANTHROPIC_API_KEY  — Claude API authentication key
+#
+# The workflow also uses the built-in GITHUB_TOKEN (automatically provided
+# by GitHub Actions) for all GitHub API operations: reading issue content,
+# posting comments, updating labels, and downloading attachments.
+# No additional token configuration is required for GITHUB_TOKEN.
+#
+# mcp-strata-cloud-manager and mcp-itsm are installed from the repository
+# checkout and started as stdio subprocesses by the orchestrator script.
+# No Docker images or external registry are required.
+
+name: Process Firewall Change Request
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  process-request:
+    name: Analyse firewall change request
+    runs-on: ubuntu-latest
+    # Only process issues that carry the firepilot:pending label
+    if: contains(github.event.issue.labels.*.name, 'firepilot:pending')
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests anthropic
+          pip install ./mcp-servers/mcp-strata-cloud-manager
+          pip install ./mcp-servers/mcp-itsm
+
+      - name: Process request and call Claude API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO: ${{ github.repository }}
+          FIREPILOT_ENV: demo
+        run: python .github/scripts/process_firewall_request.py
