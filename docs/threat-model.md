@@ -1,0 +1,401 @@
+# FirePilot — Threat Model
+
+This document describes the security-relevant attack surfaces of FirePilot,
+the threats each surface faces, and how existing architectural controls
+mitigate those threats. It is structured around the four constraint layers
+defined in [ADR-0003](adr/0003-cicd-pipeline-design-and-policy-validation-toolchain.md)
+and the [Architecture Document](architecture.md).
+
+FirePilot modifies network security policy. A compromised or manipulated
+rule change can open paths into otherwise segmented networks. The
+consequence ceiling is not data exfiltration from FirePilot itself — it
+is a firewall misconfiguration that enables lateral movement or
+unauthorized access elsewhere in the network.
+
+---
+
+## 1 — System Boundary
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        FirePilot Trust Boundary                        │
+│                                                                        │
+│  ┌──────────────┐   ┌──────────────┐   ┌───────────────────────────┐  │
+│  │ GitHub Issues │   │ Claude API   │   │ MCP Servers               │  │
+│  │ (intake)      │──▶│ (reasoning)  │──▶│  mcp-strata-cloud-manager │  │
+│  │               │   │              │   │  mcp-itsm                 │  │
+│  └──────────────┘   └──────────────┘   └──────────┬────────────────┘  │
+│                                                     │                  │
+│  ┌──────────────┐   ┌──────────────┐               │                  │
+│  │ Git / GitHub  │   │ CI/CD        │               │                  │
+│  │ (source of    │◀──│ (OPA + JSON  │               │                  │
+│  │  truth)       │   │  Schema)     │               │                  │
+│  └──────────────┘   └──────────────┘               │                  │
+└─────────────────────────────────────────────────────┼──────────────────┘
+                                                      │
+                                               ┌──────▼──────┐
+                                               │ Palo Alto   │
+                                               │ Strata Cloud│
+                                               │ Manager     │
+                                               └─────────────┘
+```
+
+**External trust boundaries** (data crosses these):
+
+- GitHub Issue → GitHub Actions workflow (user-supplied content enters
+  the processing pipeline)
+- GitHub Actions → Claude API (issue content + PDF attachments sent to
+  Anthropic)
+- Claude API → MCP servers (tool calls with parameters derived from
+  user input)
+- MCP server → SCM API (firewall configuration changes applied to
+  production infrastructure)
+- MCP server → GitHub API (issue comments and label changes written
+  back)
+
+---
+
+## 2 — Threat Catalogue
+
+### T1 — Prompt Injection via Issue Content
+
+**Attack surface**: Layer 2 (Claude system prompt).
+
+**Description**: An attacker submits a GitHub Issue whose body or
+attached PDF contains adversarial instructions designed to override
+Claude's system prompt. The goal is to make Claude generate a
+permissive firewall rule that the attacker's request does not
+justify — or to make Claude skip validation steps (zone check,
+conflict detection, user confirmation).
+
+**Consequence**: A rule is proposed that violates security policy.
+If the human approver does not catch it, the rule enters the CI/CD
+pipeline.
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| Claude's system prompt mandates a fixed, ordered workflow (Steps 1–11) | 2 | Claude cannot skip steps without violating explicit instructions; skipping is observable in the issue comment output |
+| OPA policies enforce topology constraints independently | 3 | Even if Claude proposes an internet-to-database rule, Gate 2 blocks it — OPA does not trust Claude (ADR-0003, ADR-0008) |
+| JSON Schema validates structural correctness | 3 | Malformed YAML generated under injection is caught at Gate 1 |
+| `ticket_id` enforcement is server-side in MCP | 4 | Claude cannot push a configuration without a valid change request, regardless of prompt manipulation (ADR-0004) |
+| Human approval gate | 3/4 | The `firepilot:approved` label is set by a human reviewer, not by Claude or any automated process (ADR-0005) |
+
+**Residual risk**: A sophisticated injection could produce a rule
+that is structurally valid, passes OPA policies, and appears
+reasonable in the issue comment — but serves an adversarial purpose
+(e.g., opening a port that OPA does not specifically block). This
+residual risk is inherent to any system where an LLM translates
+user intent into configuration. The human approval gate is the
+primary control for this class of attack.
+
+**Recommended hardening** (not yet implemented):
+
+- Rate limiting on issue creation (GitHub repository settings or
+  GitHub App webhook filtering) to prevent injection brute-forcing
+- Anomaly detection: flag rules where Claude's proposed configuration
+  diverges significantly from the stated business justification
+  (requires a second LLM pass or heuristic comparison)
+
+---
+
+### T2 — Malicious PDF Attachment
+
+**Attack surface**: Layer 2 (Claude context window).
+
+**Description**: A PDF attached to a GitHub Issue contains adversarial
+content — either prompt injection text embedded in the document, or
+a crafted PDF structure designed to exploit the document parser. The
+PDF is base64-encoded and sent to the Claude API as a `document`-type
+content block.
+
+**Consequence**: Similar to T1 — Claude may be influenced to generate
+an inappropriate rule. Additionally, a malformed PDF could cause the
+workflow to fail or behave unexpectedly.
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| 32 MB size limit on PDF attachments | 1/CI | Oversized files are skipped with a warning (ADR-0009, `process-issue.py`) |
+| PDF content is processed by the Claude API's document handler, not by custom parsing code | 2 | No custom PDF parser attack surface; Anthropic is responsible for document parsing security |
+| All Layer 3 and Layer 4 mitigations from T1 apply | 3/4 | Even if the PDF influences Claude's reasoning, the generated configuration still passes through OPA and human review |
+
+**Residual risk**: If the Claude API's document parser has a
+vulnerability, a crafted PDF could influence model behavior in
+ways not anticipated by the system prompt. This is outside
+FirePilot's control.
+
+---
+
+### T3 — Credential Exposure
+
+**Attack surface**: Layer 4 (MCP servers), CI/CD environment.
+
+**Description**: API credentials (SCM OAuth2 client secret, GitHub
+PAT) are leaked through logs, error messages, Git commits, or
+environment variable misconfiguration.
+
+**Consequence**: An attacker with the SCM client secret can create
+arbitrary firewall rules in the SCM tenant. An attacker with the
+GitHub PAT can manipulate issue labels (including setting
+`firepilot:approved` on their own request).
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| Credentials injected via environment variables only (ADR-0006) | 4 | No credentials in source code, config files, or Claude's context |
+| `.env` files are gitignored; `.env.example` contains only placeholder values | 4 | Prevents accidental commits of real credentials |
+| Pre-commit hook requirement for `.env` file detection (ADR-0006) | 4 | Defense-in-depth against gitignore misconfiguration |
+| GitHub Actions secret masking | CI | Secret values are automatically redacted in workflow logs |
+| SCM token stored in process memory only, never written to disk or logs (ADR-0006) | 4 | Token is ephemeral; no persistent token storage |
+| GitHub PAT scoped to `issues: write` on a single repository (ADR-0006) | 4 | Compromised PAT cannot read or modify firewall configuration files |
+| Claude never receives credentials; MCP servers are the credential boundary (ADR-0002) | 2/4 | Prompt injection cannot exfiltrate credentials that are not in the context window |
+| GitHub secret scanning (repository setting) | CI | Detects accidentally committed credential patterns |
+
+**Residual risk**: The pre-commit hook for `.env` detection is
+defined as a requirement in ADR-0006 but must be implemented
+(`.pre-commit-config.yaml`). Until implemented, the `.gitignore`
+rule is the sole barrier against credential commits.
+
+---
+
+### T4 — CI/CD Pipeline Manipulation
+
+**Attack surface**: Layer 3 (GitHub Actions workflows, OPA policies).
+
+**Description**: An attacker with write access to the repository
+modifies a workflow file, OPA policy, or JSON Schema to weaken
+validation — then submits a firewall configuration change that
+the weakened pipeline accepts.
+
+**Consequence**: A firewall rule that would have been blocked by
+Gate 2 or Gate 3 passes validation and is deployed.
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| Branch protection on `main` — all changes require PR review | 3 | Pipeline files cannot be modified without peer review (CLAUDE.md) |
+| Workflow files under `ci/` are subject to the same path filter as config files | 3 | Changes to pipeline definitions trigger the validation workflow themselves |
+| OPA policy tests (`firepilot_test.rego`) run as part of every validation | 3 | A policy weakening that breaks existing tests is caught before merge |
+| Deploy workflow re-runs Gates 1–3 on merge (defense-in-depth) | 3 | Even if a PR is approved with weakened policies, the merge-time re-run uses the policies at that commit — not a cached result |
+
+**Residual risk**: A reviewer who approves both the policy change
+and the configuration change in the same PR defeats this control.
+Separation of concerns (policy changes in dedicated PRs, config
+changes in separate PRs) is a process discipline, not a technical
+enforcement.
+
+**Recommended hardening** (not yet implemented):
+
+- CODEOWNERS rule requiring a dedicated security reviewer for
+  changes to `ci/policies/`, `ci/schemas/`, and `.github/workflows/`
+- Separate branch protection rules for pipeline files vs.
+  configuration files (GitHub rulesets)
+
+---
+
+### T5 — MCP Tool Surface Abuse
+
+**Attack surface**: Layer 4 (MCP server tool interface).
+
+**Description**: Claude, whether through prompt injection (T1) or
+a reasoning error, calls MCP tools in an unintended sequence or
+with parameters that produce a harmful outcome — for example,
+calling `push_candidate_config` without a corresponding
+`create_security_rule`, or calling `create_security_rule` with
+field values that exploit an SCM API parsing vulnerability.
+
+**Consequence**: A firewall configuration change is applied that
+does not match the approved change request.
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| `ticket_id` enforcement on all write and push operations (ADR-0004) | 4 | MCP server rejects calls before any SCM interaction if `ticket_id` is missing or empty — this is structural, not prompt-dependent |
+| Tool surface is a finite, explicitly defined allowlist (ADR-0002) | 4 | Claude cannot call operations that are not exposed as tools; no `delete_rule`, no `modify_rule`, no zone or address creation in v1 |
+| Candidate/push separation (ADR-0004) | 4 | Writing a rule to candidate config does not make it live; `push_candidate_config` is a separate, explicit action |
+| Server-side tool call logging with `structlog` | 4 | Every tool invocation is logged with tool name, sanitized parameters, outcome, and duration — auditable independently of Claude's output |
+| SCM API validates payloads independently (Layer 4 backend) | 4 | Malformed or invalid field values are rejected by the SCM API itself |
+
+**Residual risk**: If the SCM API accepts a payload that is
+technically valid but semantically dangerous (e.g., a rule with
+`application: ["any"]` and `service: ["any"]` that OPA does not
+currently catch), the MCP server will not block it — it is a
+pass-through for SCM-accepted payloads. Expanding OPA policy
+coverage is the correct mitigation.
+
+---
+
+### T6 — Supply Chain Attack on CI Dependencies
+
+**Attack surface**: Layer 3 (GitHub Actions workflow dependencies).
+
+**Description**: A compromised or typosquatted dependency — an
+Actions action (e.g., a tampered `actions/checkout`), a Python
+package (e.g., `check-jsonschema`), or the OPA binary — is
+pulled during workflow execution and executes malicious code in
+the CI environment.
+
+**Consequence**: Arbitrary code execution in the GitHub Actions
+runner, which has access to repository secrets and write access
+to `main` (in the deploy workflow).
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| Actions are pinned to major versions (`actions/checkout@v4`) | 3 | Reduces risk of unreviewed minor version changes |
+| OPA is downloaded from the official release URL | 3 | Known-good source, though not integrity-verified |
+| Python packages are installed via `pip` from PyPI | 3 | Standard supply chain, though not hash-pinned |
+
+**Residual risk**: This is the weakest mitigation area in the
+current architecture. No dependency is pinned to an exact commit
+SHA or verified against a cryptographic hash.
+
+**Recommended hardening** (not yet implemented):
+
+- Pin GitHub Actions to full commit SHAs instead of version tags
+  (e.g., `actions/checkout@<sha>` instead of `@v4`)
+- Verify the OPA binary checksum after download
+- Use `pip install --require-hashes` with a pinned requirements
+  file for CI dependencies
+- Consider GitHub's dependency review action to flag new or
+  changed dependencies in PRs
+
+---
+
+### T7 — Approval Bypass
+
+**Attack surface**: Layer 3/4 boundary (label-based approval).
+
+**Description**: An attacker with label-management permission on the
+GitHub repository sets `firepilot:approved` on their own change
+request, bypassing the intended human review.
+
+**Consequence**: A firewall configuration change is deployed without
+independent security review.
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| `firepilot:approved` / `firepilot:rejected` can only be set by humans — FirePilot never programmatically sets approval labels (ADR-0005) | 3 | Automated self-approval is architecturally impossible |
+| GitHub repository permission model controls who can manage labels | 3 | Label management can be restricted to a security team |
+| Full audit trail in issue comments documents who applied which label and when | 3 | Post-incident review can identify unauthorized approvals |
+
+**Residual risk**: GitHub's permission model does not offer
+per-label access control. Any user with `triage` or higher
+permission on the repository can add or remove any label. In
+a production deployment, restricting label management to a
+GitHub Team with a CODEOWNERS rule or a GitHub App that
+validates the approver's identity would be necessary.
+
+**Recommended hardening** (not yet implemented):
+
+- GitHub App or Actions workflow that validates the approver
+  identity against an allowlist before the approval-to-PR
+  workflow proceeds
+- Require a minimum number of distinct approvers (not just
+  one label toggle)
+
+---
+
+### T8 — Configuration Drift
+
+**Attack surface**: Layer 1/4 boundary (Git state vs. live SCM state).
+
+**Description**: A firewall rule is created, modified, or deleted
+directly in the SCM GUI or via another automation tool — bypassing
+Git and FirePilot entirely. The live firewall state diverges from
+the declared state in Git.
+
+**Consequence**: The Git repository no longer reflects reality.
+Security audits based on Git state are inaccurate. New rules
+generated by FirePilot may conflict with undocumented live rules.
+
+**Existing mitigations**:
+
+| Control | Layer | How it helps |
+|---------|-------|-------------|
+| `firepilot-managed` tag on all FirePilot rules (ADR-0007) | 1/4 | Provides a scope marker to distinguish FirePilot-managed rules from unmanaged rules; enables future drift detection |
+| `list_security_rules` is called before every rule creation (system prompt Step 4) | 2 | Claude detects conflicts with existing rules — including rules created outside FirePilot |
+
+**Residual risk**: No automated drift detection exists in v1.
+Drift is detectable only when Claude happens to query the
+rulebase and a human notices the discrepancy. This is a known
+gap documented in ADR-0001's review trigger.
+
+**Recommended hardening** (future ADR):
+
+- Scheduled GitHub Actions workflow that runs `list_security_rules`
+  and compares live state against Git state
+- Alert on rules in SCM that carry the `firepilot-managed` tag
+  but do not exist in Git (modified or deleted outside FirePilot)
+- Alert on rules in Git that do not exist in SCM (failed deployment
+  or manual deletion)
+
+---
+
+## 3 — Threat-to-Layer Matrix
+
+| Threat | L1 Issue Template | L2 Claude Prompt | L3 CI/CD | L4 MCP/API | Human Gate |
+|--------|:-:|:-:|:-:|:-:|:-:|
+| T1 Prompt injection | — | ◐ | ● | ● | ● |
+| T2 Malicious PDF | ◑ | ◐ | ● | ● | ● |
+| T3 Credential exposure | — | ● | ◑ | ● | — |
+| T4 Pipeline manipulation | — | — | ◐ | — | ● |
+| T5 Tool surface abuse | — | ◐ | — | ● | — |
+| T6 Supply chain (CI) | — | — | ○ | — | ◑ |
+| T7 Approval bypass | — | — | ◐ | — | ◐ |
+| T8 Configuration drift | — | ◑ | — | ◑ | — |
+
+Legend: ● strong mitigation · ◐ partial mitigation · ◑ weak mitigation · ○ gap · — not applicable
+
+---
+
+## 4 — Prioritised Hardening Roadmap
+
+| Priority | Threat | Action | Effort |
+|----------|--------|--------|--------|
+| 1 | T6 | Pin Actions to commit SHAs; verify OPA binary checksum; hash-pin Python CI dependencies | Low |
+| 2 | T3 | Implement `.pre-commit-config.yaml` with `.env` leak detection (ADR-0006 follow-up) | Low |
+| 3 | T7 | Add approver identity validation to `approve-and-commit.yml` | Medium |
+| 4 | T4 | Add CODEOWNERS rule for `ci/`, `.github/workflows/`, and `ci/policies/` | Low |
+| 5 | T8 | Design drift detection mechanism (requires new ADR) | High |
+| 6 | T1/T2 | Explore secondary validation pass for prompt injection detection | High |
+
+---
+
+## 5 — Assumptions
+
+- GitHub's infrastructure (Actions runners, API, secret storage) is
+  trusted. Threats to GitHub itself are out of scope.
+- Anthropic's Claude API processes input securely and does not leak
+  context across conversations or tenants. Threats to the Claude API
+  infrastructure are out of scope.
+- The Palo Alto SCM API enforces its own authentication and
+  authorization correctly. Threats to SCM's internal security are
+  out of scope.
+- The SCM service account used by FirePilot is scoped to the minimum
+  required permissions as defined in ADR-0004. Over-provisioned
+  service accounts are an operator error, not a FirePilot design flaw.
+
+---
+
+## 6 — Review Trigger
+
+This threat model must be revisited when:
+
+- A new external system integration is added (new MCP server = new
+  attack surface)
+- A prompt injection incident occurs in FirePilot or a comparable
+  MCP-based system
+- The SCM API introduces new operations that expand the tool surface
+- GitHub changes its permissions model for labels, Actions, or secrets
+- A new constraint layer is added or an existing layer is removed
+- FirePilot transitions from portfolio/demo use to production deployment
