@@ -121,6 +121,66 @@ Labels must be pre-created in the target GitHub repository before operating in l
 
 ---
 
+## Running in Live Mode
+
+Live mode makes real GitHub Issues REST API calls against a target repository.
+
+### Required environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `FIREPILOT_ENV` | Must be set to `live` |
+| `ITSM_GITHUB_TOKEN` | Fine-grained PAT with `issues:write` scope scoped to the target repo (ADR-0006) |
+| `ITSM_GITHUB_REPO` | Target repository in `owner/repo` format |
+
+Optional:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ITSM_APPROVAL_TIMEOUT_SECONDS` | `3600` | Maximum time Claude waits for a human approval label |
+| `ITSM_POLL_INTERVAL_SECONDS` | `60` | Interval between get_change_request polling calls |
+
+### GitHub repository prerequisites
+
+Before running in live mode, the following labels must be pre-created in the target GitHub repository:
+
+| Label | Meaning |
+|-------|---------|
+| `firepilot:pending` | Awaiting human review |
+| `firepilot:approved` | Approved by human reviewer |
+| `firepilot:rejected` | Rejected by human reviewer |
+| `firepilot:deployed` | Deployment completed successfully |
+| `firepilot:failed` | Deployment attempted but failed |
+
+### Starting the server
+
+```bash
+cd mcp-servers/mcp-itsm
+FIREPILOT_ENV=live \
+  ITSM_GITHUB_TOKEN=ghp_your-token-here \
+  ITSM_GITHUB_REPO=your-org/your-repo \
+  python -m mcp_itsm.server
+```
+
+Alternatively, copy `.env.example` to `.env`, fill in the values, and run:
+
+```bash
+python -m mcp_itsm.server
+```
+
+### What each tool does in live mode
+
+| Tool | GitHub API call |
+|------|-----------------|
+| `create_change_request` | `POST /repos/{owner}/{repo}/issues` — creates issue with `firepilot:pending` label |
+| `get_change_request` | `GET /repos/{owner}/{repo}/issues/{number}` — derives status from `firepilot:*` label |
+| `add_audit_comment` | `POST /repos/{owner}/{repo}/issues/{number}/comments` — appends structured Markdown event |
+| `update_change_request_status` | `PUT …/labels` (replace labels) + optionally `PATCH …/issues/{number}` (close issue) |
+
+The token is stored in process memory only — it is never written to disk, logged, or returned in tool responses (ADR-0006).
+
+---
+
 ## Running Tests
 
 ```bash
@@ -129,3 +189,15 @@ pytest
 ```
 
 All tests run against demo mode and require no GitHub credentials. The fixture store is reset to a clean state before each test.
+
+Live tool tests (in `tests/test_live_tools.py`) use a mocked GitHubClient and also require no credentials:
+
+```bash
+FIREPILOT_ENV=demo pytest tests/test_live_tools.py
+```
+
+GitHub client unit tests (in `tests/test_github_client.py`) use `respx` to mock HTTP transport:
+
+```bash
+pytest tests/test_github_client.py
+```
