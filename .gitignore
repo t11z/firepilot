@@ -17,6 +17,7 @@ env/
 # Environment files
 .env
 .env.local
+mcp-servers/**/.env
 
 # OS
 .DS_Store

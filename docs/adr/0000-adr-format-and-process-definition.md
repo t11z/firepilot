@@ -130,7 +130,7 @@ Draft → Proposed → Approved
 
 ### Creating an ADR
 
-1. Copy `docs/adr/ADR-TEMPLATE.md` to `docs/adr/XXXXx-short-title.md`  
+1. Copy `docs/adr/ADR-TEMPLATE.md` to `docs/adr/XXXXx-short-title.md`
    Use the next available sequential ID. IDs are never reused.
 2. Set status to `Draft`.
 3. Fill all sections. Incomplete ADRs must not be proposed.
@@ -142,7 +142,7 @@ Draft → Proposed → Approved
 2. At least one other team member must review the ADR.
 3. Objections must be filed as PR comments referencing specific sections.
 4. The author addresses objections by amending the ADR content, not only the PR discussion.
-5. Approval requires explicit sign-off (GitHub PR approval). 
+5. Approval requires explicit sign-off (GitHub PR approval).
 6. On merge: set status to `Approved` and record the date.
 
 ### Superseding an ADR

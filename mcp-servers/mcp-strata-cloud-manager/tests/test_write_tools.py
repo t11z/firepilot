@@ -3,7 +3,6 @@
 All tests run against demo mode fixtures set in conftest.py.
 """
 
-import pytest
 from mcp.server.fastmcp import FastMCP
 
 from tests.conftest import call_tool
