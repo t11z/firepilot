@@ -154,6 +154,16 @@ Rules:
 If a change makes existing documentation incorrect, update the documentation
 in the same PR — not in a follow-up.
 
+### PR Documentation Checklist
+
+Before marking a PR as ready for review, Claude Code must verify:
+
+- [ ] If the PR changes files under `mcp-servers/`, `ci/`, `firewall-configs/`, `.github/workflows/`, or `prompts/`: does `docs/architecture.md` need updating? If yes, include the update in this PR.
+- [ ] If the PR changes the demo scenario or any user-facing workflow: does `README.md` still accurately describe the behavior? If not, update it.
+- [ ] If the PR adds, removes, or renames a component or directory: does the repository structure in this file (`CLAUDE.md`) still match? If not, flag it to the Lead Architect.
+
+This checklist is a gate — not a suggestion. A PR that knowingly leaves documentation stale must not be opened.
+
 ---
 
 ## Commit and PR Discipline
