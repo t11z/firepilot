@@ -52,6 +52,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -87,9 +94,9 @@ jobs:
           SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
           SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
           SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
-          # ITSM credentials — injected from repository secrets in live mode (ADR-0006)
-          ITSM_GITHUB_TOKEN: ${{ secrets.ITSM_GITHUB_TOKEN }}
-          ITSM_GITHUB_REPO: ${{ secrets.ITSM_GITHUB_REPO }}
+          # ITSM credentials — App token generated at runtime (ADR-0006)
+          ITSM_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          ITSM_GITHUB_REPO: ${{ github.repository }}
 
       - name: Tag successful deployment
         if: success()

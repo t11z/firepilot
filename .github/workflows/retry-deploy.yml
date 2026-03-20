@@ -16,16 +16,19 @@ jobs:
       SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
       SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
       SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
-      ITSM_GITHUB_TOKEN: ${{ secrets.ITSM_GITHUB_TOKEN }}
-      ITSM_GITHUB_REPO: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -41,6 +44,8 @@ jobs:
       # that branch on main.
       - name: Locate merge commit
         id: find-commit
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           ISSUE_NUM="${{ env.ISSUE_NUMBER }}"
           # Search git log for merge commits referencing this issue
@@ -68,6 +73,8 @@ jobs:
       # Identify which firewall-config files were changed in that commit
       - name: Identify changed config files
         id: changed-files
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           SHA="${{ steps.find-commit.outputs.sha }}"
           # List files changed in the merge commit under firewall-configs/
@@ -89,6 +96,9 @@ jobs:
       # Run the retry deployment script
       - name: Execute retry deployment
         id: retry
+        env:
+          ITSM_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          ITSM_GITHUB_REPO: ${{ github.repository }}
         run: |
           python ci/scripts/retry-deploy.py \
             --config-dir firewall-configs/ \
@@ -97,6 +107,8 @@ jobs:
       # Update issue based on result
       - name: Handle success
         if: steps.retry.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           ISSUE_NUM="${{ env.ISSUE_NUMBER }}"
           # Remove retry-deploy label, set deployed
@@ -110,6 +122,8 @@ jobs:
             --body "**FirePilot Retry Succeeded**: Deployment completed successfully on retry. Label updated to \`firepilot:deployed\`."
       - name: Handle failure
         if: steps.retry.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           ISSUE_NUM="${{ env.ISSUE_NUMBER }}"
           gh issue comment "$ISSUE_NUM" \

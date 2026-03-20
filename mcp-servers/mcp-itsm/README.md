@@ -125,12 +125,26 @@ Labels must be pre-created in the target GitHub repository before operating in l
 
 Live mode makes real GitHub Issues REST API calls against a target repository.
 
+### Token sources
+
+**GitHub Actions (recommended):** The workflow generates a short-lived
+installation token from the GitHub App credentials (`APP_ID` +
+`APP_PRIVATE_KEY` repository secrets). This token is injected as
+`ITSM_GITHUB_TOKEN` and expires after one hour. All actions appear
+under the App's bot identity (e.g. `firepilot-bot[bot]`), providing
+clean separation between human and automated actions in the audit
+trail.
+
+**Local development:** A fine-grained PAT with `issues:write` scope
+works for local testing. Actions will appear under the PAT owner's
+identity.
+
 ### Required environment variables
 
 | Variable | Description |
 |----------|-------------|
 | `FIREPILOT_ENV` | Must be set to `live` |
-| `ITSM_GITHUB_TOKEN` | Fine-grained PAT with `issues:write` scope scoped to the target repo (ADR-0006) |
+| `ITSM_GITHUB_TOKEN` | Short-lived GitHub App installation token (CI) or fine-grained PAT with `issues:write` scope (local dev) — see Token sources above |
 | `ITSM_GITHUB_REPO` | Target repository in `owner/repo` format |
 
 Optional:
