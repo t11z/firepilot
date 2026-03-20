@@ -110,7 +110,8 @@ In `demo` mode: mock pass with simulated deployment log — no credentials requi
 Required environment variables (live mode):
 - `TICKET_ID` — ITSM ticket reference (GitHub issue number)
 - `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID` — SCM credentials
-- `ITSM_GITHUB_TOKEN`, `ITSM_GITHUB_REPO` — ITSM credentials
+- `ITSM_GITHUB_TOKEN` — GitHub App installation token (generated at workflow runtime)
+- `ITSM_GITHUB_REPO` — target repository in `owner/repo` format (derived from `github.repository`)
 - `SCM_PUSH_TIMEOUT_SECONDS` — push job poll timeout in seconds (default: 300)
 
 ---
@@ -235,10 +236,16 @@ see ADR-0006 for credential management design):
 - `SCM_CLIENT_ID` — Palo Alto SCM OAuth client ID
 - `SCM_CLIENT_SECRET` — Palo Alto SCM OAuth client secret
 - `SCM_TSG_ID` — Palo Alto SCM tenant service group ID
-- `ITSM_GITHUB_TOKEN` — ITSM integration token
-- `ITSM_GITHUB_REPO` — ITSM target repository
+- `APP_ID` — GitHub App ID; used to generate `ITSM_GITHUB_TOKEN` at workflow runtime
+- `APP_PRIVATE_KEY` — PEM private key for the GitHub App; used alongside `APP_ID`
 
-Do not set these values in workflow files. They are referenced via `${{ secrets.NAME }}` syntax.
+`ITSM_GITHUB_TOKEN` is generated at runtime by `actions/create-github-app-token@v1`
+using `APP_ID` and `APP_PRIVATE_KEY`. It is never stored as a repository secret.
+`ITSM_GITHUB_REPO` is derived from `github.repository` in each workflow — it is
+not a repository secret.
+
+Do not set these values in workflow files. SCM credentials are referenced via
+`${{ secrets.NAME }}` syntax; the ITSM token is generated per-run.
 
 ---
 

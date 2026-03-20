@@ -19,6 +19,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -41,7 +48,7 @@ jobs:
       - name: Process drift report
         if: always()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           EXIT_CODE="${{ steps.drift.outputs.exit_code || steps.drift.outcome == 'success' && '0' || '1' }}"

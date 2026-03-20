@@ -183,6 +183,25 @@ Every significant design choice is documented as an Architecture Decision Record
 
 Run `make check-deps` to verify all required tools are available.
 
+### Repository Secrets
+
+The following secrets must be configured in the repository settings for live
+mode GitHub Actions workflows:
+
+| Secret | Description |
+|--------|-------------|
+| `ANTHROPIC_API_KEY` | Claude API authentication key |
+| `APP_ID` | GitHub App ID for FirePilot bot identity |
+| `APP_PRIVATE_KEY` | PEM private key for the GitHub App |
+| `SCM_CLIENT_ID` | Palo Alto SCM OAuth client ID |
+| `SCM_CLIENT_SECRET` | Palo Alto SCM OAuth client secret |
+| `SCM_TSG_ID` | Palo Alto SCM tenant service group ID |
+
+`ITSM_GITHUB_TOKEN` is no longer a repository secret — it is generated at
+runtime by the GitHub App credentials (`APP_ID` + `APP_PRIVATE_KEY`).
+`ITSM_GITHUB_REPO` is no longer a repository secret — all workflows derive
+the target repository from `github.repository` directly.
+
 ### Pre-commit Hooks
 
 Pre-commit hooks enforce credential leak prevention (ADR-0006) and code

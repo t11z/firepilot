@@ -42,9 +42,6 @@ jobs:
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       REPO: ${{ github.repository }}
-      # GH_TOKEN is used by the `gh` CLI for idempotency checks, PR creation,
-      # and issue comments in the steps below.
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       # -----------------------------------------------------------------------
@@ -55,6 +52,16 @@ jobs:
         with:
           # Fetch full history so branch creation and push work correctly.
           fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # 1a. Generate GitHub App token
+      # -----------------------------------------------------------------------
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       # -----------------------------------------------------------------------
       # 2. Python setup
@@ -94,6 +101,8 @@ jobs:
           REPO: ${{ github.repository }}
           FIREPILOT_ENV: demo
           OUTPUT_DIR: ${{ runner.temp }}/firepilot-extracted
+          ITSM_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          ITSM_GITHUB_REPO: ${{ github.repository }}
         run: |
           mkdir -p "${{ runner.temp }}/firepilot-extracted"
           python .github/scripts/process_firewall_request.py
@@ -131,6 +140,8 @@ jobs:
       - name: Check for existing branch and PR
         id: idempotency
         if: steps.process.outputs.proposal_valid == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           BRANCH="${{ steps.branch.outputs.name }}"
 
@@ -165,6 +176,8 @@ jobs:
       # Post a link comment and stop if the PR already exists.
       - name: Post existing PR link comment on issue
         if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh issue comment "${ISSUE_NUMBER}" --body "## FirePilot — Already Processed
 
@@ -263,6 +276,8 @@ jobs:
       - name: Open pull request against main
         id: create-pr
         if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           RULE_NAME="${{ steps.process.outputs.rule_name }}"
           FOLDER="${{ steps.process.outputs.folder }}"
@@ -331,6 +346,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Post PR link comment on issue
         if: steps.process.outputs.proposal_valid == 'true' && steps.idempotency.outputs.already_exists != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           RULE_NAME="${{ steps.process.outputs.rule_name }}"
           PR_URL="${{ steps.create-pr.outputs.pr_url }}"
