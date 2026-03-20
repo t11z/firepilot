@@ -65,27 +65,52 @@ security policy. The violation message is printed and the gate fails.
 
 ### Gate 3 — Dry-Run Validation
 
-**Script**: `ci/scripts/gate3-dry-run.sh`
+**Script**: `ci/scripts/gate3-dry-run.sh` → delegates to `ci/scripts/gate3-dry-run.py` in live mode
 
-In `live` mode: calls `mcp-strata-cloud-manager` in validation mode to confirm
-the candidate configuration is accepted by the Palo Alto SCM API schema before
-any changes are committed.
+In `live` mode:
+- Connects to `mcp-strata-cloud-manager` via MCP stdio subprocess
+- For each rule file in `firewall-configs/{folder}/{position}/`:
+  - Calls `list_security_zones` to verify every zone in `from`/`to` exists in SCM
+  - Calls `list_addresses` to verify address objects in `source`/`destination` exist
+    (skips values that are `any` or CIDR notation — those are not address objects)
+  - Calls `list_security_rules` to detect name conflicts with existing rules
+- Does NOT write anything — read-only validation only
+- Exits 0 if all checks pass; exits 1 and reports all violations if any found
 
 In `demo` mode: mock pass — MCP server not required.
 
+Required environment variables (live mode):
+- `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID` — passed to MCP server subprocess
+
 ### Gate 4 — Deployment
 
-**Script**: `ci/scripts/gate4-deploy.sh`
+**Script**: `ci/scripts/gate4-deploy.sh` → delegates to `ci/scripts/gate4-deploy.py` in live mode
 
 In `live` mode:
-1. Calls `mcp-strata-cloud-manager` to push the candidate configuration
-2. Creates a change request via `mcp-itsm`
-3. Records the deployment outcome on the change request
+1. Connects to both `mcp-strata-cloud-manager` and `mcp-itsm` via MCP stdio subprocesses
+2. For each rule in `firewall-configs/{folder}/{position}/` (manifest order):
+   - Calls `create_security_rule` to write the rule to SCM candidate config
+   - Calls `add_audit_comment` on the ITSM ticket with event `candidate_written`
+3. Calls `push_candidate_config` for all unique folders
+4. Calls `add_audit_comment` with event `push_initiated`
+5. Polls `get_job_status` every 10 seconds until terminal state
+   (`FIN`, `PUSHFAIL`, `PUSHABORT`, `PUSHTIMEOUT`)
+6. On `result_str=OK`: records `push_succeeded`, sets ITSM status to `deployed`. Exit 0.
+7. On any other result: records `push_failed`, sets ITSM status to `failed`. Exit 1.
+
+Requires `TICKET_ID` environment variable (the GitHub issue number from the originating
+change request — extracted from the merge commit branch name in `deploy.yml`).
 
 On success, the deploy workflow tags the commit:
 `deploy-{YYYYMMDDTHHMMSSZ}-{short-sha}`
 
 In `demo` mode: mock pass with simulated deployment log — no credentials required.
+
+Required environment variables (live mode):
+- `TICKET_ID` — ITSM ticket reference (GitHub issue number)
+- `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID` — SCM credentials
+- `ITSM_GITHUB_TOKEN`, `ITSM_GITHUB_REPO` — ITSM credentials
+- `SCM_PUSH_TIMEOUT_SECONDS` — push job poll timeout in seconds (default: 300)
 
 ---
 
@@ -159,9 +184,15 @@ ci/
 │   └── firepilot_test.rego      # OPA policy unit tests
 ├── scripts/
 │   ├── build-opa-input.py       # Assembles OPA input JSON from a config directory
+│   ├── mcp_connect.py           # Shared MCP server connection helper
+│   ├── process-issue.py         # Claude agentic loop for firewall change requests
 │   ├── validate-all.sh          # Orchestrates Gates 1–3
-│   ├── gate3-dry-run.sh         # Gate 3: dry-run validation (mock in v1)
-│   └── gate4-deploy.sh          # Gate 4: deployment (mock in v1)
+│   ├── gate3-dry-run.sh         # Gate 3: shell entry point (demo/live dispatch)
+│   ├── gate3-dry-run.py         # Gate 3: live validation via mcp-strata-cloud-manager
+│   ├── gate4-deploy.sh          # Gate 4: shell entry point (demo/live dispatch)
+│   ├── gate4-deploy.py          # Gate 4: live deployment via MCP servers
+│   ├── test_gate3_dry_run.py    # Pytest tests for gate3-dry-run.py
+│   └── test_gate4_deploy.py     # Pytest tests for gate4-deploy.py
 └── fixtures/
     ├── firewall-configs/        # Valid fixture set (mirrors production layout)
     └── invalid/                 # Invalid fixtures for OPA policy testing

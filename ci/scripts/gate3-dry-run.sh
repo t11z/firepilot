@@ -1,19 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-echo "Gate 3: Dry-run validation"
+echo "Gate 3: Dry-Run Validation"
 echo "Mode: ${FIREPILOT_ENV:-demo}"
 
 if [ "${FIREPILOT_ENV:-demo}" = "demo" ]; then
-  echo "DEMO MODE: Skipping SCM API dry-run validation"
-  echo "In live mode, this gate calls mcp-strata-cloud-manager"
-  echo "in validation mode to confirm the firewall API accepts"
-  echo "the proposed configuration."
+  echo "DEMO MODE: Skipping live dry-run validation"
   echo "Result: PASS (mock)"
   exit 0
 fi
 
-# Live mode placeholder — will be replaced when MCP servers exist
-echo "ERROR: Live dry-run validation not yet implemented"
-echo "Set FIREPILOT_ENV=demo or implement MCP server integration"
-exit 1
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+python "$REPO_ROOT/ci/scripts/gate3-dry-run.py" \
+  --config-dir "$REPO_ROOT/firewall-configs/"

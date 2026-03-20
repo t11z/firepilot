@@ -33,9 +33,12 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 
 import anthropic
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from mcp import ClientSession
 from mcp.types import CallToolResult, TextContent
+
+# Allow importing mcp_connect from the same directory
+sys.path.insert(0, str(Path(__file__).parent))
+from mcp_connect import connect_mcp_server  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -272,36 +275,6 @@ async def run_agentic_loop(
             if texts:
                 return "\n".join(texts).strip()
     return ""
-
-
-# ---------------------------------------------------------------------------
-# MCP server connection
-# ---------------------------------------------------------------------------
-
-async def connect_mcp_server(
-    stack: AsyncExitStack,
-    module: str,
-    env_overrides: dict[str, str],
-) -> ClientSession | None:
-    """Start an MCP server as a stdio subprocess and return an initialised session.
-
-    Returns None if the connection or initialisation fails, logging the error.
-    """
-    params = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", module],
-        env={**os.environ, **env_overrides},
-    )
-    try:
-        read, write = await stack.enter_async_context(stdio_client(params))
-        session: ClientSession = await stack.enter_async_context(
-            ClientSession(read, write)
-        )
-        await session.initialize()
-        return session
-    except Exception as exc:  # noqa: BLE001 — log and degrade gracefully
-        print(f"WARNING: Failed to start MCP server '{module}': {exc}", file=sys.stderr)
-        return None
 
 
 # ---------------------------------------------------------------------------

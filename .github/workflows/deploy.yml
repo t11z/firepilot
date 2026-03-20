@@ -49,17 +49,47 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install MCP servers
+        run: |
+          pip install ./mcp-servers/mcp-strata-cloud-manager
+          pip install ./mcp-servers/mcp-itsm
+
+      - name: Extract ticket ID from branch name
+        id: ticket
+        run: |
+          # Branch naming convention: firepilot/issue-{N}-{rule-name}
+          # Extract issue number from the PR branch that was merged into main.
+          BRANCH="${{ github.event.head_commit.message }}"
+          # Try to extract from merge commit message "Merge pull request ... from .../firepilot/issue-N-..."
+          TICKET_ID=$(echo "$BRANCH" | grep -oP 'firepilot/issue-\K[0-9]+' | head -1 || true)
+
+          if [ -z "$TICKET_ID" ]; then
+            # Fallback: check TICKET_ID env var or leave empty (demo mode will still work)
+            TICKET_ID="${TICKET_ID_OVERRIDE:-}"
+          fi
+
+          echo "ticket_id=${TICKET_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Run deployment (Gate 4)
         run: bash ci/scripts/gate4-deploy.sh
         env:
-          FIREPILOT_ENV: demo
-          # Live mode secrets — injected from repository secrets when MCP servers are integrated (ADR-0006):
-          # SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
-          # SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
-          # SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
-          # ITSM_GITHUB_TOKEN: ${{ secrets.ITSM_GITHUB_TOKEN }}
-          # ITSM_GITHUB_REPO: ${{ secrets.ITSM_GITHUB_REPO }}
+          FIREPILOT_ENV: ${{ vars.FIREPILOT_ENV || 'demo' }}
+          TICKET_ID: ${{ steps.ticket.outputs.ticket_id }}
+          # SCM credentials — injected from repository secrets in live mode (ADR-0006)
+          SCM_CLIENT_ID: ${{ secrets.SCM_CLIENT_ID }}
+          SCM_CLIENT_SECRET: ${{ secrets.SCM_CLIENT_SECRET }}
+          SCM_TSG_ID: ${{ secrets.SCM_TSG_ID }}
+          # ITSM credentials — injected from repository secrets in live mode (ADR-0006)
+          ITSM_GITHUB_TOKEN: ${{ secrets.ITSM_GITHUB_TOKEN }}
+          ITSM_GITHUB_REPO: ${{ secrets.ITSM_GITHUB_REPO }}
 
       - name: Tag successful deployment
         if: success()
