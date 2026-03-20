@@ -95,7 +95,7 @@ firepilot/
 
 FirePilot runs entirely without live infrastructure. Every MCP tool returns realistic fixture data when `FIREPILOT_ENV=demo` — no credentials, no external APIs.
 
-### Stufe 1 — Quick Start (no API key required)
+### Level 1 — Quick Start (no API key required)
 
 ```bash
 git clone https://github.com/tsprock/firepilot.git
@@ -112,7 +112,7 @@ This runs all four CI/CD validation gates against the existing firewall configur
 
 Docker is used if available (`docker compose`). If Docker is not installed, native execution is used instead — requires Python 3.12+, `opa`, and `check-jsonschema` on `PATH`. Run `make check-deps` first to verify.
 
-### Stufe 2 — AI-Powered Analysis (requires Anthropic API key)
+### Level 2 — AI-Powered Analysis (requires Anthropic API key)
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -125,7 +125,7 @@ This demonstrates the core AI workflow without any live infrastructure or produc
 
 Docker is used if available. Without Docker, `ci/scripts/process-issue.py` is invoked directly (requires the MCP servers to be installed: `pip install ./mcp-servers/mcp-strata-cloud-manager ./mcp-servers/mcp-itsm`).
 
-### Stufe 3 — Full GitHub Actions Flow (production narrative)
+### Level 3 — Full GitHub Actions Flow (production narrative)
 
 The full production workflow operates entirely within GitHub:
 
