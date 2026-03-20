@@ -53,6 +53,33 @@ test: ## Run all Python tests (MCP servers)
 		echo "No MCP server test directories found — nothing to run."; \
 	fi
 
+.PHONY: demo
+demo: ## Run full CI validation pipeline (Gates 1–4) in demo mode; uses Docker if available
+	@if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then \
+		docker compose -f demo/docker-compose.yml run --rm --build demo-validate && \
+		docker compose -f demo/docker-compose.yml run --rm demo-validate bash ci/scripts/gate4-deploy.sh; \
+	else \
+		bash demo/demo-validate.sh; \
+	fi
+
+.PHONY: demo-orchestrator
+demo-orchestrator: ## Run Claude-powered analysis of the example issue (requires ANTHROPIC_API_KEY)
+	@if [ -z "$${ANTHROPIC_API_KEY:-}" ]; then \
+		echo "ERROR: ANTHROPIC_API_KEY is not set."; \
+		echo "Export your Anthropic API key before running this target:"; \
+		echo "  export ANTHROPIC_API_KEY=sk-ant-..."; \
+		exit 1; \
+	fi
+	@if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then \
+		docker compose -f demo/docker-compose.yml run --rm --build demo-orchestrator; \
+	else \
+		$(PYTHON) ci/scripts/process-issue.py --issue-body "$$(cat demo/example-issue.md)"; \
+	fi
+
+.PHONY: demo-clean
+demo-clean: ## Remove Docker images and containers created by the demo
+	docker compose -f demo/docker-compose.yml down --rmi local 2>/dev/null || true
+
 .PHONY: clean
 clean: ## Remove generated files / caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
