@@ -368,7 +368,10 @@ firepilot/
 │   ├── scripts/                           # Gate scripts
 │   └── fixtures/                          # Test fixtures
 └── demo/                                  # Local demo setup
-    └── docker-compose.yml
+    ├── Dockerfile
+    ├── docker-compose.yml
+    ├── demo-validate.sh
+    └── example-issue.md
 ```
 
 ---

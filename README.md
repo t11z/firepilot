@@ -93,21 +93,52 @@ firepilot/
 
 ## 🧪 Demo Mode
 
-FirePilot runs entirely without live infrastructure. Set `FIREPILOT_ENV=demo` and every MCP tool returns realistic fixture data instead of calling external APIs.
+FirePilot runs entirely without live infrastructure. Every MCP tool returns realistic fixture data when `FIREPILOT_ENV=demo` — no credentials, no external APIs.
+
+### Stufe 1 — Quick Start (no API key required)
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/firepilot.git
+git clone https://github.com/tsprock/firepilot.git
 cd firepilot
-
-# Run CI validation locally
-cd ci && make check-deps && make validate
-
-# Run OPA policy tests
-cd ci && make test-policies
+make demo
 ```
 
-The demo fixtures represent a small enterprise environment with a four-tier network segmentation model (untrust → web → app → db), pre-configured security zones, address objects, and a baseline rulebase.
+This runs all four CI/CD validation gates against the existing firewall configuration fixtures in demo mode:
+
+- **Gate 1** — JSON Schema validation (structural correctness of YAML files)
+- **Gate 2** — OPA policy evaluation (security semantics via Rego)
+- **Gate 3** — Dry-run validation against the mock SCM API
+- **Gate 4** — Simulated deployment (demo mode)
+
+Docker is used if available (`docker compose`). If Docker is not installed, native execution is used instead — requires Python 3.12+, `opa`, and `check-jsonschema` on `PATH`. Run `make check-deps` first to verify.
+
+### Stufe 2 — AI-Powered Analysis (requires Anthropic API key)
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+make demo-orchestrator
+```
+
+This sends the example firewall change request (`demo/example-issue.md`) through the full Claude agentic loop. Claude connects to both MCP servers in demo mode, queries the mock firewall state (`list_security_zones`, `list_security_rules`, `list_addresses`), and generates a YAML configuration proposal validated against the security policies. The complete analysis is printed to stdout.
+
+This demonstrates the core AI workflow without any live infrastructure or production credentials.
+
+Docker is used if available. Without Docker, `ci/scripts/process-issue.py` is invoked directly (requires the MCP servers to be installed: `pip install ./mcp-servers/mcp-strata-cloud-manager ./mcp-servers/mcp-itsm`).
+
+### Stufe 3 — Full GitHub Actions Flow (production narrative)
+
+The full production workflow operates entirely within GitHub:
+
+1. **Issue created** — A business unit opens a GitHub Issue using the `firewall-change-request` template. The template automatically applies the `firepilot:pending` label.
+2. **Workflow triggers** — The `firepilot:pending` label triggers `.github/workflows/process-firewall-request.yml`.
+3. **Claude analyses** — The workflow extracts the issue body and any PDF attachments, then invokes the Claude API (`ci/scripts/process-issue.py`). Claude queries the live SCM API via `mcp-strata-cloud-manager` and the ITSM state via `mcp-itsm`.
+4. **Comment posted** — Claude posts its analysis, proposed YAML configuration, and validation summary as an issue comment.
+5. **Human approves** — A security approver reviews the comment and sets the `firepilot:approved` label on the issue.
+6. **Config committed** — The approved YAML is committed to a feature branch and a PR is opened against `main`.
+7. **PR validation** — `.github/workflows/validate.yml` runs Gates 1–3 on the PR.
+8. **Merge → deploy** — After PR merge, `.github/workflows/deploy.yml` re-runs Gates 1–3 then executes Gate 4: pushing the configuration to Strata Cloud Manager via `mcp-strata-cloud-manager` and recording the deployment result via `mcp-itsm`.
+
+The demo fixtures represent a four-tier network segmentation model (untrust → web → app → db), pre-configured security zones, address objects, and a baseline rulebase.
 
 ---
 
