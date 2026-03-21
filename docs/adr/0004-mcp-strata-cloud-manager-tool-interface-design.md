@@ -562,3 +562,218 @@ construction.
 - If the push/job polling model is replaced by a synchronous
   mechanism in a future SCM API version, reassess
   `push_candidate_config` and `get_job_status` semantics
+
+---
+
+## Amendment: Address Object and Address Group Write Tools (2026-03-21)
+
+| Field     | Value                                                                |
+|-----------|----------------------------------------------------------------------|
+| Amended   | Write Tools section                                                  |
+| Reason    | Claude must be able to create address objects and address groups dynamically when processing firewall change requests. Without write tools for addresses, Claude is forced to either use raw IPs in rules (anti-pattern in SCM — creates duplication and complicates IP changes) or abort when a required address object does not exist. |
+| Related   | ADR-0009 Amendment (document-driven requests extract multiple rules with distinct addresses), ADR-0012 (operator configuration) |
+
+---
+
+### Problem Statement
+
+The original tool surface assumes that all address objects and address
+groups referenced in security rules already exist in SCM. Claude can
+look them up (`list_addresses`, `list_address_groups`) but cannot
+create them.
+
+This assumption breaks in the document-driven request mode (ADR-0009
+Amendment): a PigeonTrack deployment manual specifies seven firewall
+rules referencing six distinct IP addresses and subnets. None of these
+exist as SCM address objects until FirePilot processes the request.
+
+The correct workflow is:
+
+1. Claude extracts required addresses from the request
+2. Claude calls `list_addresses` to check which already exist
+3. For missing addresses, Claude calls `create_address`
+4. Claude references the (existing or newly created) address object
+   names in the security rule
+
+This is the same lookup-then-create pattern used for security rules
+and is consistent with SCM's candidate configuration model — newly
+created address objects are part of the candidate config and only
+become live after the push.
+
+### New Write Tools
+
+All new write tools enforce `ticket_id` server-side, consistent with
+the existing `create_security_rule` pattern. A call without a
+non-empty `ticket_id` is rejected immediately with error code
+`MISSING_TICKET_REF`.
+
+#### `create_address`
+
+Maps to: `POST /config/objects/v1/addresses`
+```
+Input:
+  ticket_id:     str               required (server-enforced)
+  folder:        str               required, max 64 chars
+  name:          str               required, max 63 chars
+  description:   str               optional, max 1023 chars
+  tag:           list[str]         optional, max 64 entries
+  # exactly one of the following address types:
+  ip_netmask:    str               IP with optional CIDR, e.g. "192.168.80.0/24"
+  ip_range:      str               IP range, e.g. "10.0.0.1-10.0.0.10"
+  ip_wildcard:   str               IP wildcard mask
+  fqdn:          str               Fully qualified domain name
+
+Output (HTTP 201):
+  id:            str (UUID)        SCM-assigned address object identifier
+  name:          str
+  folder:        str
+  description:   str | null
+  tag:           list[str]
+  # the address type field that was submitted, echoed in response
+  ip_netmask:    str | null
+  ip_range:      str | null
+  ip_wildcard:   str | null
+  fqdn:          str | null
+```
+
+Exactly one address type field must be provided. The SCM API rejects
+requests with zero or multiple address type fields.
+
+Error codes follow the same pattern as `create_security_rule`:
+
+| HTTP | Code | Meaning                                         |
+|------|------|-------------------------------------------------|
+| 400  | E003 | Input format mismatch, missing body, invalid object |
+| 401  | E016 | Authentication failure                           |
+| 403  | E007 | Authorization failure                            |
+| 409  | E006 | Name Not Unique — address with this name already exists |
+| 409  | E016 | Object Not Unique                                |
+
+Claude's expected behaviour on E006 (Name Not Unique): treat as
+success — the address already exists. Call `list_addresses` with the
+name to retrieve the existing object and use it. This is the same
+idempotency pattern used for `create_security_rule` in retry
+scenarios.
+
+Writes to candidate configuration only. The address object is
+available for reference in security rules immediately within the same
+candidate config session, before a push.
+
+#### `create_address_group`
+
+Maps to: `POST /config/objects/v1/address-groups`
+```
+Input:
+  ticket_id:     str               required (server-enforced)
+  folder:        str               required, max 64 chars
+  name:          str               required, max 63 chars
+                                   pattern: ^[ a-zA-Z\d._-]+$
+  description:   str               optional, max 1023 chars
+  tag:           list[str]         optional, max 64 entries
+  # exactly one of:
+  static:        list[str]         member address object names, each max 63 chars
+  dynamic:       object            dynamic filter expression
+
+Output (HTTP 201):
+  id:            str (UUID)        SCM-assigned address group identifier
+  name:          str
+  folder:        str
+  description:   str | null
+  tag:           list[str]
+  static:        list[str] | null
+  dynamic:       object | null
+```
+
+Static groups reference existing address objects by name. All
+referenced address objects must exist in the candidate config before
+the group is created — Claude must create individual address objects
+first, then group them.
+
+Error codes are identical to `create_address`.
+
+Claude's expected behaviour on E006 (Name Not Unique): same as
+`create_address` — treat as success, retrieve existing group.
+
+### Updated Tool Inventory
+
+The complete `mcp-strata-cloud-manager` tool surface after this
+amendment:
+
+| Tool                      | Type       | Ticket required | Purpose                                    |
+|---------------------------|------------|:---------------:|--------------------------------------------|
+| `list_security_rules`     | Read       | —               | Read current rules                         |
+| `list_security_zones`     | Read       | —               | Validate zone references                   |
+| `list_addresses`          | Read       | —               | Check existing address objects             |
+| `list_address_groups`     | Read       | —               | Check existing address groups              |
+| `create_address`          | Write      | ✓               | Create address object in candidate config  |
+| `create_address_group`    | Write      | ✓               | Create address group in candidate config   |
+| `create_security_rule`    | Write      | ✓               | Create security rule in candidate config   |
+| `push_candidate_config`   | Operations | ✓               | Push candidate to running config           |
+| `get_job_status`          | Operations | —               | Poll push job status                       |
+
+### Claude Workflow Integration
+
+The system prompt workflow (Phase 1, Step 3) is extended:
+
+**Step 3 (amended): Check and create address objects.**
+
+1. Call `list_addresses(folder=...)` and `list_address_groups(folder=...)`
+2. For each address referenced in the request:
+   - If a matching address object exists: note the object name for
+     use in the rule
+   - If no match: call `create_address` with the appropriate address
+     type, a descriptive name, and the `firepilot-managed` tag
+3. If the request references multiple addresses that logically form
+   a group (e.g., a database cluster with primary and replica):
+   create individual address objects first, then call
+   `create_address_group` with the member names
+
+Address object names follow the convention
+`{application}-{function}-{address}`, e.g.,
+`pigeontrack-db-primary-10.10.5.10`,
+`pigeontrack-dmz-server-10.20.0.50`. This convention is guidance
+for Claude, not an MCP-enforced constraint.
+
+### Demo Mode Behaviour
+
+In demo mode (`FIREPILOT_ENV=demo`), `create_address` and
+`create_address_group` return fixture responses that mirror the
+201 response schema. The created objects are added to the in-memory
+fixture store so that subsequent `list_addresses` /
+`list_address_groups` calls within the same session return them.
+This ensures that the lookup-then-create-then-reference workflow is
+fully exercisable in demo mode.
+
+### Consequences of this Amendment
+
+- **Positive**: Claude can handle requests that reference addresses
+  not yet in SCM — the full address lifecycle is within the tool
+  surface
+- **Positive**: The PigeonTrack demo scenario works end-to-end
+  without pre-seeding address fixtures
+- **Positive**: Address objects get the `firepilot-managed` tag,
+  making them visible to drift detection (ADR-0011)
+- **Positive**: The E006 idempotency pattern makes retries safe —
+  re-processing an issue does not fail on already-created addresses
+- **Negative**: Two new write tools expand the attack surface (T5
+  in the threat model) — a prompt injection could attempt to create
+  misleading address objects. Mitigation: address objects in
+  candidate config are not live until push; the PR review gate
+  catches unexpected object creation; OPA could be extended to
+  validate address objects in a future iteration
+- **Negative**: Address object naming is convention-based, not
+  enforced — Claude may produce inconsistent names across requests.
+  Mitigation: acceptable for v1; a naming policy can be added to
+  OPA later
+- **Follow-up required**: Implement `create_address` tool in
+  `mcp-strata-cloud-manager` (write module + demo fixtures + live
+  client method)
+- **Follow-up required**: Implement `create_address_group` tool
+  (same scope)
+- **Follow-up required**: Update SCMClient with
+  `create_address` and `create_address_group` methods
+- **Follow-up required**: Update system prompt Step 3
+- **Follow-up required**: Update `docs/architecture.md` tool
+  inventory table
+- **Follow-up required**: Update threat model T5 to reflect
+  expanded tool surface
