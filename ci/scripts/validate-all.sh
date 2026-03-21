@@ -4,18 +4,18 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CI_DIR="$REPO_ROOT/ci"
 CONFIG_DIR="$REPO_ROOT/firewall-configs"
-ZONES_FILE="$CONFIG_DIR/zones.yaml"
+FIREPILOT_CONFIG="$REPO_ROOT/firepilot.yaml"
 
 ERRORS=0
 
 # ─── Gate 1: Schema Validation ───────────────────────────────────────────────
 echo "=== Gate 1: Schema Validation ==="
 
-if [ -f "$ZONES_FILE" ]; then
-  echo "Validating zones.yaml..."
+if [ -f "$FIREPILOT_CONFIG" ]; then
+  echo "Validating firepilot.yaml..."
   check-jsonschema \
-    --schemafile "$CI_DIR/schemas/zone-mapping.schema.json" \
-    "$ZONES_FILE" || ERRORS=$((ERRORS + 1))
+    --schemafile "$CI_DIR/schemas/firepilot-config.schema.json" \
+    "$FIREPILOT_CONFIG" || ERRORS=$((ERRORS + 1))
 fi
 
 # Iterate over every {folder}/{position}/ directory
@@ -54,10 +54,10 @@ echo "Gate 1 PASSED"
 echo ""
 echo "=== Gate 2: OPA Policy Evaluation ==="
 
-# Build zones flag if zones.yaml exists
+# Build zones flag if firepilot.yaml exists
 ZONES_FLAG=""
-if [ -f "$ZONES_FILE" ]; then
-  ZONES_FLAG="--zones $ZONES_FILE"
+if [ -f "$FIREPILOT_CONFIG" ]; then
+  ZONES_FLAG="--zones $FIREPILOT_CONFIG"
 fi
 
 for position_dir in "$CONFIG_DIR"/*/pre "$CONFIG_DIR"/*/post; do

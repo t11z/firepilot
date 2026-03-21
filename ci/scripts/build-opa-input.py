@@ -11,7 +11,7 @@ Usage:
 
     --folder FOLDER      Override the derived folder name (default: parent directory name)
     --position POSITION  Override the derived position name (default: directory name)
-    --zones ZONES_FILE   Path to zones.yaml; if provided, adds zone_mapping to OPA input
+    --zones ZONES_FILE   Path to firepilot.yaml; if provided, adds zone_mapping to OPA input
 
 Output:
     JSON printed to stdout suitable for piping to `opa eval -i /dev/stdin`.
@@ -19,7 +19,7 @@ Output:
 Examples:
     # Valid fixture — folder/position derived from path (shared/pre), with zone mapping
     python ci/scripts/build-opa-input.py firewall-configs/shared/pre/ \\
-        --zones firewall-configs/zones.yaml \\
+        --zones firepilot.yaml \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
@@ -38,7 +38,7 @@ Examples:
     # Topology violation fixture — supply zone mapping to activate topology policies
     python ci/scripts/build-opa-input.py ci/fixtures/invalid/internet-to-database/ \\
         --folder shared --position pre \\
-        --zones ci/fixtures/invalid/internet-to-database/zones.yaml \\
+        --zones ci/fixtures/invalid/internet-to-database/firepilot.yaml \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
@@ -73,11 +73,11 @@ except ImportError:
     sys.exit(1)
 
 MANIFEST_FILENAME = "_rulebase.yaml"
-# zones.yaml is the zone topology mapping (ADR-0008). It lives at the root of
-# firewall-configs/, never inside a rule directory. Skip it if encountered so
-# that fixture directories can colocate a zones.yaml for test convenience without
-# it being misidentified as a rule file.
-ZONE_MAPPING_FILENAME = "zones.yaml"
+# firepilot.yaml is the operator configuration file (ADR-0012). Its zones section
+# is the zone topology mapping (ADR-0008). Skip it if encountered so that fixture
+# directories can colocate a firepilot.yaml for test convenience without it being
+# misidentified as a rule file.
+ZONE_MAPPING_FILENAME = "firepilot.yaml"
 
 
 def load_yaml(path: Path) -> dict:
@@ -104,14 +104,14 @@ def load_yaml(path: Path) -> dict:
 
 
 def load_zone_mapping(zones_path: Path) -> dict:
-    """Load zones.yaml and extract the zones map for use as zone_mapping in OPA input.
+    """Load firepilot.yaml and extract the zones map for use as zone_mapping in OPA input.
 
-    Reads the zones.yaml file and returns the value of its 'zones' key — a
+    Reads the firepilot.yaml file and returns the value of its 'zones' key — a
     mapping of SCM zone names to their metadata objects (role + description).
     This matches the input.zone_mapping structure expected by ADR-0008 policies.
 
     Args:
-        zones_path: Filesystem path to zones.yaml.
+        zones_path: Filesystem path to firepilot.yaml.
 
     Returns:
         Dictionary mapping zone names to zone metadata objects.
@@ -122,7 +122,7 @@ def load_zone_mapping(zones_path: Path) -> dict:
     zones_data = load_yaml(zones_path)
     if not isinstance(zones_data, dict) or "zones" not in zones_data:
         print(
-            f"Error: {zones_path} must contain a top-level 'zones' key",
+            f"Error: {zones_path} must contain a top-level 'zones' key (firepilot.yaml format)",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -140,7 +140,7 @@ def build_opa_input(
     Reads _rulebase.yaml as the manifest and all other .yaml files as rule
     files. Derives 'folder' and 'position' from the directory structure
     unless overrides are provided. Optionally includes zone_mapping from
-    a zones.yaml file to activate topology-aware OPA policies (ADR-0008).
+    a firepilot.yaml file to activate topology-aware OPA policies (ADR-0008).
 
     Args:
         directory: Path to the folder/position directory (e.g. shared/pre/).
@@ -150,7 +150,7 @@ def build_opa_input(
             folder hierarchy.
         position_override: If provided, use this as directory.position instead
             of deriving it from the directory name.
-        zones_path: If provided, load zones.yaml from this path and include
+        zones_path: If provided, load firepilot.yaml from this path and include
             its 'zones' map as zone_mapping in the OPA input. If None, no
             zone_mapping key is included (backward compatible with configs
             validated before ADR-0008 was introduced).
@@ -186,11 +186,11 @@ def build_opa_input(
 
     manifest = load_yaml(manifest_path)
 
-    # Load all .yaml files except _rulebase.yaml and zones.yaml as rule files.
+    # Load all .yaml files except _rulebase.yaml and firepilot.yaml as rule files.
     # Key is the filename without the .yaml extension (matching rule_order entries).
-    # zones.yaml is always at the firewall-configs/ root (ADR-0008), never inside
-    # a rule directory — skip it here regardless to avoid treating it as a rule file
-    # when fixture directories colocate it for test convenience.
+    # firepilot.yaml lives at the repo root (ADR-0012), never inside a rule directory
+    # — skip it here regardless to avoid treating it as a rule file when fixture
+    # directories colocate it for test convenience.
     rule_files: dict = {}
     for yaml_file in sorted(directory.glob("*.yaml")):
         if yaml_file.name in {MANIFEST_FILENAME, ZONE_MAPPING_FILENAME}:
@@ -249,7 +249,7 @@ def main() -> None:
         default=None,
         metavar="ZONES_FILE",
         help=(
-            "Path to zones.yaml. When provided, the 'zones' map is included as "
+            "Path to firepilot.yaml. When provided, the 'zones' map is included as "
             "'zone_mapping' in the OPA input, activating topology-aware policies "
             "(ADR-0008). When omitted, zone_mapping is absent and topology policies "
             "do not fire — preserving backward compatibility."

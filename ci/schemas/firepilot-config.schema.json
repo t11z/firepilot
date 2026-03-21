@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://firepilot/schemas/firepilot-config.schema.json",
+  "title": "FirePilot Operator Configuration",
+  "description": "Validates firepilot.yaml — the centralised operator configuration file (ADR-0012). Includes SCM defaults, rule defaults, and zone topology mapping (ADR-0008).",
+  "type": "object",
+  "required": ["schema_version", "scm", "rule_defaults", "zones"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "description": "Schema version. Must be 1.",
+      "type": "integer",
+      "const": 1
+    },
+    "scm": {
+      "description": "Strata Cloud Manager connection and placement defaults.",
+      "type": "object",
+      "required": ["default_folder", "default_position"],
+      "additionalProperties": false,
+      "properties": {
+        "default_folder": {
+          "description": "Default SCM folder for rule placement. Maximum 64 characters.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "default_position": {
+          "description": "Default rulebase position. Must be 'pre' or 'post'.",
+          "type": "string",
+          "enum": ["pre", "post"]
+        }
+      }
+    },
+    "rule_defaults": {
+      "description": "Default field values applied to all managed security rules.",
+      "type": "object",
+      "required": ["tag", "log_end", "log_start"],
+      "additionalProperties": false,
+      "properties": {
+        "tag": {
+          "description": "Tag applied to every rule created by FirePilot.",
+          "type": "string",
+          "minLength": 1
+        },
+        "log_end": {
+          "description": "Whether to log at session end by default.",
+          "type": "boolean"
+        },
+        "log_start": {
+          "description": "Whether to log at session start by default.",
+          "type": "boolean"
+        }
+      }
+    },
+    "zones": {
+      "description": "Map of SCM zone name to zone metadata. At least one zone must be defined. Replaces firewall-configs/zones.yaml (ADR-0008, ADR-0012).",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "description": "Zone metadata object.",
+        "type": "object",
+        "required": ["role", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "description": "Architectural role from the controlled vocabulary (ADR-0008).",
+            "type": "string",
+            "enum": [
+              "internet",
+              "internal",
+              "dmz",
+              "database",
+              "application",
+              "web-frontend",
+              "endpoints",
+              "management"
+            ]
+          },
+          "description": {
+            "description": "Human-readable description of the zone's function.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
