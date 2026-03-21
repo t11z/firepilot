@@ -31,7 +31,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 19.5px;
+      font-size: 23.4px;
       line-height: 1.7;
       -webkit-font-smoothing: antialiased;
     }
@@ -47,12 +47,12 @@
     .icon svg { display: block; }
 
     /* ── Layout ── */
-    .wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; }
+    .wrap { max-width: 1060px; margin: 0 auto; padding: 0 32px; }
 
     /* ── Top bar ── */
     .topbar {
       border-bottom: 1px solid var(--border);
-      padding: 14px 0;
+      padding: 16px 0;
       position: sticky; top: 0;
       background: rgba(13,15,17,0.92);
       backdrop-filter: blur(8px);
@@ -60,11 +60,11 @@
     }
     .topbar-inner { display: flex; align-items: center; justify-content: space-between; }
     .logo {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 21px; font-weight: 700; color: var(--text); letter-spacing: 0.04em;
+      display: flex; align-items: center; gap: 12px;
+      font-size: 25px; font-weight: 700; color: var(--text); letter-spacing: 0.04em;
     }
     .logo-icon {
-      width: 26px; height: 26px;
+      width: 30px; height: 30px;
       background: var(--accent);
       clip-path: polygon(50% 0%, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
       display: flex; align-items: center; justify-content: center;
@@ -72,7 +72,7 @@
     }
     .nav { display: flex; gap: 24px; align-items: center; }
     .nav a {
-      color: var(--muted); font-size: 18px; font-weight: 400;
+      color: var(--muted); font-size: 22px; font-weight: 400;
       transition: color .15s;
       display: flex; align-items: center; gap: 6px;
     }
@@ -82,32 +82,32 @@
     .hero { padding: 80px 0 60px; border-bottom: 1px solid var(--border); }
     .prompt-line { display: flex; align-items: center; gap: 8px; margin-bottom: 32px; }
     .prompt-sign { color: var(--accent); font-weight: 700; user-select: none; }
-    .prompt-text { color: var(--muted); font-size: 18px; }
+    .prompt-text { color: var(--muted); font-size: 22px; }
     .cursor {
-      display: inline-block; width: 8px; height: 14px;
+      display: inline-block; width: 9px; height: 16px;
       background: var(--accent); margin-left: 2px;
       animation: blink 1.1s step-end infinite;
     }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
     h1 {
-      font-size: clamp(42px, 5vw, 66px); font-weight: 700; color: #fff;
-      line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 20px;
+      font-size: clamp(50px, 6vw, 79px); font-weight: 700; color: #fff;
+      line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 24px;
     }
     h1 .accent { color: var(--accent); }
 
     .tagline {
-      font-size: 21px; color: var(--muted); max-width: 580px;
-      line-height: 1.8; margin-bottom: 36px;
+      font-size: 25px; color: var(--muted); max-width: 680px;
+      line-height: 1.8; margin-bottom: 40px;
     }
 
-    .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 40px; }
     .badge {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px;
+      padding: 7px 16px;
       border: 1px solid var(--border-hi);
       border-radius: 4px;
-      font-size: 16.5px; color: var(--muted);
+      font-size: 20px; color: var(--muted);
       background: var(--bg-raised);
       letter-spacing: 0.03em;
     }
@@ -119,8 +119,8 @@
     .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 20px;
-      font-family: var(--font); font-size: 18px; font-weight: 500;
+      padding: 12px 22px;
+      font-family: var(--font); font-size: 22px; font-weight: 500;
       border-radius: 4px; cursor: pointer; transition: all .15s;
       letter-spacing: 0.02em;
     }
@@ -130,43 +130,43 @@
     .btn-ghost:hover { border-color: var(--muted); text-decoration: none; }
 
     /* ── Sections ── */
-    .section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+    .section { padding: 72px 0; border-bottom: 1px solid var(--border); }
     .section:last-child { border-bottom: none; }
 
     .section-label {
       display: flex; align-items: center; gap: 8px;
-      font-size: 15px; font-weight: 500; letter-spacing: 0.12em;
+      font-size: 18px; font-weight: 500; letter-spacing: 0.12em;
       text-transform: uppercase; color: var(--accent);
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
     .section-label .icon { opacity: 0.8; }
 
-    h2 { font-size: 33px; font-weight: 600; color: #fff; margin-bottom: 28px; letter-spacing: -0.01em; }
+    h2 { font-size: 40px; font-weight: 600; color: #fff; margin-bottom: 32px; letter-spacing: -0.01em; }
 
     /* ── Flow ── */
     .flow-box {
       background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 6px; padding: 28px 24px; overflow-x: auto;
+      border-radius: 6px; padding: 32px 28px; overflow-x: auto;
     }
     .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
-    .flow-step { display: flex; flex-direction: column; align-items: center; min-width: 110px; }
+    .flow-step { display: flex; flex-direction: column; align-items: center; min-width: 125px; }
     .flow-node {
       border: 1px solid var(--border-hi); border-radius: 4px;
-      padding: 8px 14px; font-size: 16.5px; text-align: center;
+      padding: 10px 16px; font-size: 20px; text-align: center;
       line-height: 1.4; background: var(--bg-raised); color: var(--text); white-space: nowrap;
     }
     .flow-node.hi    { border-color: var(--accent); color: #fff; }
     .flow-node.green { border-color: var(--green);  color: var(--green); }
     .flow-node.blue  { border-color: var(--blue);   color: var(--blue); }
-    .flow-arrow { color: var(--muted); font-size: 24px; padding: 0 6px; line-height: 1; align-self: center; }
-    .flow-sub { font-size: 15px; color: var(--muted); margin-top: 5px; text-align: center; }
+    .flow-arrow { color: var(--muted); font-size: 29px; padding: 0 6px; line-height: 1; align-self: center; }
+    .flow-sub { font-size: 18px; color: var(--muted); margin-top: 5px; text-align: center; }
 
     /* ── Gates ── */
     .gates { display: flex; flex-direction: column; gap: 10px; }
     .gate {
-      display: grid; grid-template-columns: 56px 1fr;
-      align-items: center; gap: 18px;
-      padding: 16px 20px;
+      display: grid; grid-template-columns: 60px 1fr;
+      align-items: center; gap: 20px;
+      padding: 18px 22px;
       background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 5px; position: relative; overflow: hidden;
     }
@@ -182,16 +182,16 @@
     .gate.g2 .gate-icon { color: var(--yellow); }
     .gate.g3 .gate-icon { color: var(--green); }
     .gate.g4 .gate-icon { color: var(--accent); }
-    .gate-id   { font-size: 15px; color: var(--muted); letter-spacing: 0.06em; }
-    .gate-name { font-size: 18px; color: #fff; font-weight: 500; }
-    .gate-desc { font-size: 16.5px; color: var(--muted); margin-top: 2px; }
+    .gate-id   { font-size: 18px; color: var(--muted); letter-spacing: 0.06em; }
+    .gate-name { font-size: 22px; color: #fff; font-weight: 500; }
+    .gate-desc { font-size: 20px; color: var(--muted); margin-top: 2px; }
 
     /* ── ADR cards ── */
-    .adr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+    .adr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 14px; }
     .adr-card {
-      padding: 20px 22px; background: var(--bg-card);
+      padding: 22px 24px; background: var(--bg-card);
       border: 1px solid var(--border); border-radius: 6px;
-      display: flex; flex-direction: column; gap: 12px;
+      display: flex; flex-direction: column; gap: 14px;
       transition: border-color .15s;
     }
     .adr-card:hover { border-color: var(--border-hi); }
@@ -199,45 +199,45 @@
     .adr-card-header .icon { color: var(--accent); opacity: 0.7; }
     .adr-tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .adr-tag {
-      font-size: 15px; font-weight: 500; letter-spacing: 0.05em;
-      padding: 2px 9px; border-radius: 3px;
+      font-size: 18px; font-weight: 500; letter-spacing: 0.05em;
+      padding: 2px 10px; border-radius: 3px;
       background: var(--accent-lo); border: 1px solid var(--accent-mid);
       color: var(--accent);
     }
-    .adr-card-title { font-size: 18px; color: #fff; font-weight: 500; line-height: 1.5; }
-    .adr-card-body  { font-size: 16.5px; color: var(--muted); line-height: 1.75; flex: 1; }
+    .adr-card-title { font-size: 22px; color: #fff; font-weight: 500; line-height: 1.5; }
+    .adr-card-body  { font-size: 20px; color: var(--muted); line-height: 1.75; flex: 1; }
     .adr-card-body code {
-      font-family: var(--font); font-size: 15px;
+      font-family: var(--font); font-size: 18px;
       background: var(--bg-raised); border: 1px solid var(--border);
       padding: 1px 5px; border-radius: 3px; color: var(--green);
     }
     .adr-card-footer {
-      display: flex; gap: 14px; padding-top: 8px;
+      display: flex; gap: 14px; padding-top: 10px;
       border-top: 1px solid var(--border);
     }
     .adr-card-footer a {
-      font-size: 16.5px; color: var(--muted);
+      font-size: 20px; color: var(--muted);
       display: flex; align-items: center; gap: 4px;
     }
     .adr-card-footer a:hover { color: var(--accent); text-decoration: none; }
 
     /* ── Stack grid ── */
-    .stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
     .stack-item {
-      padding: 16px 18px; background: var(--bg-card);
+      padding: 18px 20px; background: var(--bg-card);
       border: 1px solid var(--border); border-radius: 5px;
       display: flex; align-items: flex-start; gap: 12px;
     }
     .stack-item .icon { color: var(--muted); margin-top: 3px; flex-shrink: 0; }
     .stack-text {}
-    .stack-role { font-size: 15px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 3px; }
-    .stack-tech { font-size: 18px; color: var(--text); font-weight: 500; }
+    .stack-role { font-size: 18px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 3px; }
+    .stack-tech { font-size: 22px; color: var(--text); font-weight: 500; }
 
     /* ── Demo block ── */
     .demo-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     .demo-titlebar {
       display: flex; align-items: center; gap: 10px;
-      padding: 10px 16px; background: var(--bg-raised); border-bottom: 1px solid var(--border);
+      padding: 12px 18px; background: var(--bg-raised); border-bottom: 1px solid var(--border);
     }
     .dot-bar { display:flex; gap:6px; }
     .dot-bar span { width: 10px; height: 10px; border-radius: 50%; }
@@ -245,10 +245,10 @@
     .dot-bar .y { background: #ffbd2e; }
     .dot-bar .g { background: #27c93f; }
     .demo-titlebar .icon { color: var(--muted); }
-    .demo-file { font-size: 16.5px; color: var(--muted); }
-    .demo-body { padding: 22px; }
+    .demo-file { font-size: 20px; color: var(--muted); }
+    .demo-body { padding: 24px; }
     .demo-body pre {
-      font-family: var(--font); font-size: 18px;
+      font-family: var(--font); font-size: 22px;
       line-height: 1.7; color: var(--text); white-space: pre; overflow-x: auto;
     }
     .t-comment { color: var(--muted); }
@@ -259,15 +259,15 @@
     .t-warn    { color: var(--yellow); }
 
     /* ── Footer ── */
-    .footer { padding: 36px 0; border-top: 1px solid var(--border); }
+    .footer { padding: 40px 0; border-top: 1px solid var(--border); }
     .footer-inner {
       display: flex; justify-content: space-between; align-items: center;
-      flex-wrap: wrap; gap: 16px;
+      flex-wrap: wrap; gap: 18px;
     }
-    .footer-note { font-size: 16.5px; color: var(--muted); }
-    .footer-links { display: flex; gap: 20px; align-items: center; }
+    .footer-note { font-size: 20px; color: var(--muted); }
+    .footer-links { display: flex; gap: 22px; align-items: center; }
     .footer-links a {
-      font-size: 16.5px; color: var(--muted);
+      font-size: 20px; color: var(--muted);
       display: flex; align-items: center; gap: 6px;
       transition: color .15s;
     }
@@ -275,9 +275,9 @@
 
     /* ── Disclaimer ── */
     .disclaimer {
-      margin-top: 40px; padding: 14px 18px;
+      margin-top: 44px; padding: 16px 20px;
       background: rgba(227,179,65,0.06); border: 1px solid rgba(227,179,65,0.2);
-      border-radius: 5px; font-size: 16.5px; color: var(--muted); line-height: 1.7;
+      border-radius: 5px; font-size: 20px; color: var(--muted); line-height: 1.7;
       display: flex; align-items: flex-start; gap: 10px;
     }
     .disclaimer .icon { color: var(--yellow); flex-shrink: 0; margin-top: 4px; }
@@ -381,6 +381,15 @@
   <symbol id="i-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0 1 12 12.75Zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 0 1-1.152 6.06M12 12.75c-2.883 0-5.647.508-8.208 1.44a23.913 23.913 0 0 0 1.152 6.061M12 12.75c-1.38 0-2.627-.177-3.75-.496m3.75.496c1.38 0 2.627-.177 3.75-.496m-3.75.496V8.25m-3.75 4.254c-.21-.168-.404-.35-.58-.545M8.25 12.004V8.25m0 3.754-.133.098A12.7 12.7 0 0 1 6.75 13.5m1.5-1.246c.21-.168.404-.35.58-.545M15.75 12.004V8.25m0 3.754.133.098A12.7 12.7 0 0 0 17.25 13.5m-1.5-1.246c-.21-.168-.404-.35-.58-.545M15.75 8.25c0-1.657-1.679-3-3.75-3S8.25 6.593 8.25 8.25m7.5 0h1.5a2.25 2.25 0 0 1 2.25 2.25v.75m-13.5-3h-1.5A2.25 2.25 0 0 0 2.25 9.75v.75"/>
   </symbol>
+  <!-- pencil-square (write/config) -->
+  <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/>
+  </symbol>
+  <!-- cog (operator config) -->
+  <symbol id="i-cog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.379-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+  </symbol>
 </svg>
 
 <!-- ── Top bar ── -->
@@ -392,23 +401,23 @@
     </div>
     <nav class="nav">
       <a href="#how-it-works">
-        <span class="icon"><svg width="16" height="16"><use href="#i-arrow-right"/></svg></span>
+        <span class="icon"><svg width="18" height="18"><use href="#i-arrow-right"/></svg></span>
         how it works
       </a>
       <a href="#pipeline">
-        <span class="icon"><svg width="16" height="16"><use href="#i-shield"/></svg></span>
+        <span class="icon"><svg width="18" height="18"><use href="#i-shield"/></svg></span>
         pipeline
       </a>
       <a href="#adrs">
-        <span class="icon"><svg width="16" height="16"><use href="#i-doc"/></svg></span>
+        <span class="icon"><svg width="18" height="18"><use href="#i-doc"/></svg></span>
         decisions
       </a>
       <a href="#demo">
-        <span class="icon"><svg width="16" height="16"><use href="#i-terminal"/></svg></span>
+        <span class="icon"><svg width="18" height="18"><use href="#i-terminal"/></svg></span>
         demo
       </a>
       <a href="https://github.com/t11z/firepilot" target="_blank">
-        <span class="icon"><svg width="16" height="16"><use href="#i-github"/></svg></span>
+        <span class="icon"><svg width="18" height="18"><use href="#i-github"/></svg></span>
         github
       </a>
     </nav>
@@ -427,10 +436,10 @@
     <h1>AI-driven firewall<br>rule management.<br><span class="accent">GitOps-native.</span></h1>
 
     <p class="tagline">
-      Business units describe network security requirements in plain language.
-      Claude parses the intent, generates declarative YAML, validates it through
-      Policy-as-Code, and deploys to Palo Alto Networks Strata Cloud Manager —
-      with a full audit trail in GitHub Issues.
+      Business units submit firewall change requests as GitHub Issues — in plain language,
+      with optional PDF attachments. Claude autonomously parses the intent, generates declarative YAML,
+      writes configuration files via MCP tool, validates through Policy-as-Code, and deploys
+      to Palo Alto Networks Strata Cloud Manager — with a full audit trail in Git.
     </p>
 
     <div class="badges">
@@ -477,7 +486,7 @@
 <section class="section" id="how-it-works">
   <div class="wrap">
     <div class="section-label">
-      <span class="icon"><svg width="16" height="16"><use href="#i-arrow-right"/></svg></span>
+      <span class="icon"><svg width="18" height="18"><use href="#i-arrow-right"/></svg></span>
       flow
     </div>
     <h2>How a firewall rule gets deployed</h2>
@@ -495,12 +504,12 @@
         <div class="flow-arrow">→</div>
         <div class="flow-step">
           <div class="flow-node hi">Claude API</div>
-          <div class="flow-sub">intent parsing<br>+ config gen</div>
+          <div class="flow-sub">autonomous<br>processing</div>
         </div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">
-          <div class="flow-node green">YAML + PR</div>
-          <div class="flow-sub">declarative rule<br>committed to Git</div>
+          <div class="flow-node green">write_config_file</div>
+          <div class="flow-sub">YAML via MCP tool<br>to output dir</div>
         </div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">
@@ -509,8 +518,8 @@
         </div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">
-          <div class="flow-node">Human Approval</div>
-          <div class="flow-sub">PR review</div>
+          <div class="flow-node">PR Review</div>
+          <div class="flow-sub">human approval<br>gate</div>
         </div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">
@@ -526,13 +535,13 @@
 <section class="section" id="pipeline">
   <div class="wrap">
     <div class="section-label">
-      <span class="icon"><svg width="16" height="16"><use href="#i-shield"/></svg></span>
+      <span class="icon"><svg width="18" height="18"><use href="#i-shield"/></svg></span>
       ci/cd
     </div>
     <h2>Four validation gates</h2>
     <div class="gates">
       <div class="gate g1">
-        <div class="gate-icon"><svg width="28" height="28"><use href="#i-doc"/></svg></div>
+        <div class="gate-icon"><svg width="30" height="30"><use href="#i-doc"/></svg></div>
         <div>
           <div class="gate-id">GATE 1</div>
           <div class="gate-name">JSON Schema Validation</div>
@@ -540,7 +549,7 @@
         </div>
       </div>
       <div class="gate g2">
-        <div class="gate-icon"><svg width="28" height="28"><use href="#i-shield"/></svg></div>
+        <div class="gate-icon"><svg width="30" height="30"><use href="#i-shield"/></svg></div>
         <div>
           <div class="gate-id">GATE 2</div>
           <div class="gate-name">OPA Policy Evaluation</div>
@@ -548,7 +557,7 @@
         </div>
       </div>
       <div class="gate g3">
-        <div class="gate-icon"><svg width="28" height="28"><use href="#i-check"/></svg></div>
+        <div class="gate-icon"><svg width="30" height="30"><use href="#i-check"/></svg></div>
         <div>
           <div class="gate-id">GATE 3</div>
           <div class="gate-name">SCM Dry-Run</div>
@@ -556,7 +565,7 @@
         </div>
       </div>
       <div class="gate g4">
-        <div class="gate-icon"><svg width="28" height="28"><use href="#i-bolt"/></svg></div>
+        <div class="gate-icon"><svg width="30" height="30"><use href="#i-bolt"/></svg></div>
         <div>
           <div class="gate-id">GATE 4</div>
           <div class="gate-name">Deploy + ITSM Update</div>
@@ -571,20 +580,20 @@
 <section class="section" id="adrs">
   <div class="wrap">
     <div class="section-label">
-      <span class="icon"><svg width="16" height="16"><use href="#i-doc"/></svg></span>
+      <span class="icon"><svg width="18" height="18"><use href="#i-doc"/></svg></span>
       decisions
     </div>
     <h2>Key architectural decisions</h2>
-    <p style="color:var(--muted);font-size:18px;margin-bottom:32px;max-width:640px;">
+    <p style="color:var(--muted);font-size:22px;margin-bottom:36px;max-width:768px;">
       Every non-trivial decision is documented as an ADR — including rejected alternatives and the conditions under which the decision should be revisited.
-      13 ADRs in total. <a href="https://github.com/t11z/firepilot/tree/main/docs/adr" target="_blank">Browse all →</a>
+      16 ADRs in total. <a href="https://github.com/t11z/firepilot/tree/main/docs/adr" target="_blank">Browse all →</a>
     </p>
 
     <div class="adr-grid">
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="icon"><svg width="20" height="20"><use href="#i-lock"/></svg></span>
+          <span class="icon"><svg width="22" height="22"><use href="#i-lock"/></svg></span>
           <div class="adr-tags"><span class="adr-tag">GitOps</span><span class="adr-tag">Security</span></div>
         </div>
         <div class="adr-card-title">MCP over direct API — credentials never enter Claude's context</div>
@@ -601,7 +610,7 @@
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="icon"><svg width="20" height="20"><use href="#i-shield"/></svg></span>
+          <span class="icon"><svg width="22" height="22"><use href="#i-shield"/></svg></span>
           <div class="adr-tags"><span class="adr-tag">Policy-as-Code</span><span class="adr-tag">NGFW</span></div>
         </div>
         <div class="adr-card-title">Zone topology-aware OPA validation — first-match semantics enforced at CI time</div>
@@ -611,7 +620,7 @@
           Internet-to-database paths are structurally blocked, not just discouraged.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0008-zone-topology-aware-policy-validation.md" target="_blank">
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0008-zone-topology-mapping-and-role-based-policy-validation.md" target="_blank">
             <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0008
           </a>
           <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0003-cicd-pipeline-design-and-policy-validation-toolchain.md" target="_blank">
@@ -622,7 +631,7 @@
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="icon"><svg width="20" height="20"><use href="#i-server"/></svg></span>
+          <span class="icon"><svg width="22" height="22"><use href="#i-server"/></svg></span>
           <div class="adr-tags"><span class="adr-tag">Palo Alto Networks SCM</span><span class="adr-tag">Schema</span></div>
         </div>
         <div class="adr-card-title">YAML schema field names taken verbatim from SCM API docs — no abstraction layer</div>
@@ -643,14 +652,14 @@
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="icon"><svg width="20" height="20"><use href="#i-cpu"/></svg></span>
+          <span class="icon"><svg width="22" height="22"><use href="#i-cpu"/></svg></span>
           <div class="adr-tags"><span class="adr-tag">Agentic AI</span><span class="adr-tag">GitHub Issues</span></div>
         </div>
         <div class="adr-card-title">GitHub Issues as intake — full lifecycle in a single auditable artefact</div>
         <div class="adr-card-body">
           No custom web UI. A structured Issue Template captures the request; a GitHub Actions workflow
-          triggers the Claude agentic loop on creation. The issue contains the original request,
-          PDF attachments, Claude's analysis, and the deployment outcome — a complete SOC 2-aligned audit trail.
+          triggers Claude's autonomous agentic loop on creation. The issue contains the original request,
+          PDF attachments, Claude's analysis, and the deployment outcome — a complete audit trail.
         </div>
         <div class="adr-card-footer">
           <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0009-github-issues-as-primary-firewall-change-request-interface.md" target="_blank">
@@ -664,14 +673,53 @@
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="icon"><svg width="20" height="20"><use href="#i-sync"/></svg></span>
+          <span class="icon"><svg width="22" height="22"><use href="#i-bolt"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Autonomous</span><span class="adr-tag">Agentic</span></div>
+        </div>
+        <div class="adr-card-title">Autonomous processing — Claude decides, commits, or rejects without human-in-the-loop</div>
+        <div class="adr-card-body">
+          In the asynchronous GitHub Issue workflow, interactive clarification is architecturally impossible.
+          Claude operates with a three-tier decision model: confident (commit all), partial (commit what's unambiguous,
+          skip the rest with documented reasoning), or unprocessable (reject with actionable feedback).
+          The PR is the sole human approval gate.
+        </div>
+        <div class="adr-card-footer">
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0014-enforce-autonomous-processing-in-async-issue-workflow.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0014
+          </a>
+        </div>
+      </div>
+
+      <div class="adr-card">
+        <div class="adr-card-header">
+          <span class="icon"><svg width="22" height="22"><use href="#i-pencil"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">MCP Tool</span><span class="adr-tag">Pipeline</span></div>
+        </div>
+        <div class="adr-card-title">Claude writes config files via MCP tool — no Markdown-to-YAML extraction</div>
+        <div class="adr-card-body">
+          Configuration output travels through the file system via <code>write_config_file</code>,
+          not through stdout regex extraction. Multi-rule support is native — Claude writes N files,
+          the workflow commits N files. YAML validation happens at write time inside the agentic loop,
+          not post-hoc in a workflow script.
+        </div>
+        <div class="adr-card-footer">
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0015-claude-writes-configuration-files.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0015
+          </a>
+        </div>
+      </div>
+
+      <div class="adr-card">
+        <div class="adr-card-header">
+          <span class="icon"><svg width="22" height="22"><use href="#i-sync"/></svg></span>
           <div class="adr-tags"><span class="adr-tag">Drift Detection</span><span class="adr-tag">GitOps</span></div>
         </div>
         <div class="adr-card-title">Scheduled drift detection — Git state vs. live SCM state reconciled daily</div>
         <div class="adr-card-body">
           A daily GitHub Actions workflow compares <code>firepilot-managed</code> rules in Git
           against the live SCM ruleset. Out-of-band changes — GUI edits, other automation — are
-          detected and reported as GitHub Issues before they cause policy drift or audit failures.
+          detected and reported as GitHub Issues. Push failures after merge trigger a
+          label-based retry workflow without re-running Gates 1–3.
         </div>
         <div class="adr-card-footer">
           <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md" target="_blank">
@@ -682,16 +730,20 @@
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="icon"><svg width="20" height="20"><use href="#i-bolt"/></svg></span>
-          <div class="adr-tags"><span class="adr-tag">Claude API</span><span class="adr-tag">Cost</span></div>
+          <span class="icon"><svg width="22" height="22"><use href="#i-cog"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Operator Config</span><span class="adr-tag">Cost</span></div>
         </div>
-        <div class="adr-card-title">Prompt caching on the agentic loop — system prompt cached across tool-use iterations</div>
+        <div class="adr-card-title">Centralised operator config + prompt caching for multi-turn agentic loops</div>
         <div class="adr-card-body">
-          The system prompt and operator configuration are marked with <code>cache_control: ephemeral</code>.
-          In a multi-turn tool-use loop with 10+ iterations, this eliminates repeated input token costs
-          for the largest static content block on every iteration.
+          <code>firepilot.yaml</code> is the single operator configuration file — SCM defaults,
+          zone topology, rule defaults. The system prompt and operator configuration are cached
+          with <code>cache_control: ephemeral</code>, eliminating repeated input token costs
+          across 10+ tool-use iterations per request.
         </div>
         <div class="adr-card-footer">
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0012-centralised-operator-configuration.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0012
+          </a>
           <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0013-prompt-caching-for-orchestrator-agentic-loop.md" target="_blank">
             <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0013
           </a>
@@ -706,62 +758,62 @@
 <section class="section">
   <div class="wrap">
     <div class="section-label">
-      <span class="icon"><svg width="16" height="16"><use href="#i-cube"/></svg></span>
+      <span class="icon"><svg width="18" height="18"><use href="#i-cube"/></svg></span>
       stack
     </div>
     <h2>Technology stack</h2>
     <div class="stack-grid">
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-cpu"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-cpu"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">ORCHESTRATION</div>
           <div class="stack-tech">Claude API</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-bolt"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-bolt"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">INTEGRATION</div>
           <div class="stack-tech">MCP Protocol</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-code"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-code"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">SERVERS</div>
           <div class="stack-tech">Python 3.12+</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-shield"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-shield"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">POLICY</div>
           <div class="stack-tech">OPA / Rego</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-doc"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-doc"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">CONFIG</div>
           <div class="stack-tech">YAML</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-settings"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-settings"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">CI/CD</div>
           <div class="stack-tech">GitHub Actions</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-server"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-server"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">FIREWALL API</div>
           <div class="stack-tech">Palo Alto Networks SCM</div>
         </div>
       </div>
       <div class="stack-item">
-        <span class="icon"><svg width="20" height="20"><use href="#i-cube"/></svg></span>
+        <span class="icon"><svg width="22" height="22"><use href="#i-cube"/></svg></span>
         <div class="stack-text">
           <div class="stack-role">DEMO</div>
           <div class="stack-tech">Docker / Compose</div>
@@ -775,7 +827,7 @@
 <section class="section" id="demo">
   <div class="wrap">
     <div class="section-label">
-      <span class="icon"><svg width="16" height="16"><use href="#i-terminal"/></svg></span>
+      <span class="icon"><svg width="18" height="18"><use href="#i-terminal"/></svg></span>
       demo
     </div>
     <h2>Run it locally — no credentials needed</h2>
@@ -806,12 +858,13 @@
 
 <span class="t-out">→ connecting mcp-strata-cloud-manager  (demo mode)</span>
 <span class="t-out">→ connecting mcp-itsm                  (demo mode)</span>
-<span class="t-out">→ loaded 12 tools</span>
+<span class="t-out">→ loaded 14 tools  (7 SCM + 5 ITSM + 2 config)</span>
 <span class="t-out">→ invoking claude agentic loop ...</span>
 <span class="t-warn">  list_security_zones → 4 zones</span>
 <span class="t-warn">  list_security_rules → 6 rules</span>
+<span class="t-warn">  write_config_file   → allow-web-to-app.yaml</span>
 <span class="t-out">→ proposal generated</span>
-<span class="t-ok">✓ YAML configuration written to stdout</span></pre>
+<span class="t-ok">✓ configuration files written to output dir</span></pre>
       </div>
     </div>
   </div>
@@ -832,11 +885,11 @@
           linkedin
         </a>
         <a href="https://github.com/t11z/firepilot/blob/main/docs/architecture.md" target="_blank">
-          <span class="icon"><svg width="16" height="16"><use href="#i-map"/></svg></span>
+          <span class="icon"><svg width="18" height="18"><use href="#i-map"/></svg></span>
           architecture
         </a>
         <a href="https://github.com/t11z/firepilot/blob/main/docs/threat-model.md" target="_blank">
-          <span class="icon"><svg width="16" height="16"><use href="#i-bug"/></svg></span>
+          <span class="icon"><svg width="18" height="18"><use href="#i-bug"/></svg></span>
           threat model
         </a>
       </div>
