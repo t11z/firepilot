@@ -1,0 +1,13 @@
+schema_version: 1
+name: allow-internal-web-access-pigeontrack
+from: [trust]
+to: [dmz]
+source: [pigeontrack-internal-users-10.10.0.0-16]
+source_user: [any]
+destination: [pigeontrack-dmz-server-10.20.0.50]
+service: [tcp-443, tcp-80]
+application: [ssl, web-browsing]
+category: [any]
+action: allow
+tag: [firepilot-managed]
+description: Internal user web access to PigeonTrack (HTTPS primary, HTTP redirect only)
