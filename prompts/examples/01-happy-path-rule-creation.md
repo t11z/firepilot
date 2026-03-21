@@ -83,9 +83,53 @@ the web zone to the application zone for a new customer portal.
 > Result: id="00000000-0000-0000-0000-000000000004"
 >
 > Tool call: `add_audit_comment(change_request_id="43", event="candidate_written", detail="Rule allow-web-to-app created in candidate config", scm_reference="00000000-0000-0000-0000-000000000004")`
+>
+> Tool call: `write_config_file(filename="allow-web-to-app.yaml", file_type="security_rule", content="""
+> schema_version: 1
+> name: "allow-web-to-app"
+> description: "Permit HTTPS traffic from web zone to application zone for customer portal"
+> from:
+>   - "web-zone"
+> to:
+>   - "app-zone"
+> source:
+>   - "web-subnet-10.1.0.0-24"
+> source_user:
+>   - "any"
+> destination:
+>   - "app-subnet-10.2.0.0-24"
+> service:
+>   - "application-default"
+> application:
+>   - "ssl"
+>   - "web-browsing"
+> category:
+>   - "any"
+> action: "allow"
+> tag:
+>   - "firepilot-managed"
+> log_end: true
+> """)`
+> Result: file_path="/output/allow-web-to-app.yaml", file_type="security_rule", file_size=412
 
-Processing complete. The workflow infrastructure commits the YAML,
-opens a PR, and CI validation triggers automatically.
+**Claude (internal):**
+> *Step 7a: Write rulebase manifest.*
+>
+> Existing rules from Step 4: deny-direct-db-access
+>
+> Tool call: `write_config_file(filename="_rulebase.yaml", file_type="rulebase_manifest", content="""
+> schema_version: 1
+> folder: "Shared"
+> position: "pre"
+> rule_order:
+>   - deny-direct-db-access
+>   - allow-web-to-app
+> """)`
+> Result: file_path="/output/_rulebase.yaml", file_type="rulebase_manifest", file_size=98
+
+Processing complete. Two configuration files written (allow-web-to-app.yaml
+and _rulebase.yaml). The workflow infrastructure commits them, opens a PR,
+and CI validation triggers automatically.
 
 ---
 
@@ -102,5 +146,9 @@ opens a PR, and CI validation triggers automatically.
   It is informational — Claude does not wait for confirmation before
   proceeding to Step 6.
 - **Steps 6–7**: Change request created and rule written to candidate
-  config. The processing run ends here. Branch creation, PR opening,
-  and deployment are handled by the workflow infrastructure.
+  config. After `create_security_rule`, `write_config_file` is called to
+  write the ADR-0007-compliant YAML to the output directory.
+- **Step 7a**: The rulebase manifest is written as `_rulebase.yaml`,
+  listing existing rules followed by the newly created rule. This manifest
+  and the rule file are the two artefacts that the workflow infrastructure
+  commits, opens a PR for, and triggers CI validation against.

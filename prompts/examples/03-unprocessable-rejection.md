@@ -74,7 +74,8 @@ Destination Zone, and Ports all contain placeholder text ("TBD").
 > cannot select or infer zones on your behalf.
 
 **Claude (internal):**
-> Apply label `firepilot:rejected` to the issue.
+> No `write_config_file` calls were made. Zero configuration files written.
+> The absence of output files signals rejection to the workflow infrastructure.
 > Processing run complete — no rules created, no change request opened.
 
 ---
@@ -92,6 +93,10 @@ Destination Zone, and Ports all contain placeholder text ("TBD").
   there is no interactive loop. The rejection terminates this run.
 - **No change request opened**: Because no rule can be extracted, no
   ITSM change request is created. There is no partial state to clean up.
+- **No write_config_file calls were made**: The absence of output files
+  signals rejection to the workflow. The workflow detects zero `.yaml`
+  files in the output directory and applies `firepilot:rejected` to the
+  issue. No branch is created and no PR is opened.
 - **Label applied**: The `firepilot:rejected` label signals to the
   requestor and to any monitoring tooling that this issue requires
   resubmission, not further action on the current issue.

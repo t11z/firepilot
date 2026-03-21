@@ -112,17 +112,150 @@ does not exist in the configuration.
 > Tool call: `create_security_rule(ticket_id="91", folder="Shared", position="pre", name="allow-payments-web-to-app", ...)`
 > Result: id="rule-0101"
 > Tool call: `add_audit_comment(change_request_id="91", event="candidate_written", detail="Rule allow-payments-web-to-app", scm_reference="rule-0101")`
+> Tool call: `write_config_file(filename="allow-payments-web-to-app.yaml", file_type="security_rule", content="""
+> schema_version: 1
+> name: "allow-payments-web-to-app"
+> description: "Payments Platform v2 — HTTPS from web zone to app zone"
+> from:
+>   - "web-zone"
+> to:
+>   - "app-zone"
+> source:
+>   - "web-subnet-10.1.0.0-24"
+> source_user:
+>   - "any"
+> destination:
+>   - "app-subnet-10.2.0.0-24"
+> service:
+>   - "application-default"
+> application:
+>   - "ssl"
+>   - "web-browsing"
+> category:
+>   - "any"
+> action: "allow"
+> tag:
+>   - "firepilot-managed"
+> log_end: true
+> """)`
+> Result: file_path="/output/allow-payments-web-to-app.yaml", file_type="security_rule", file_size=408
 >
-> [repeated for rules 2, 3, 4]
+> Tool call: `create_security_rule(ticket_id="91", folder="Shared", position="pre", name="allow-payments-app-to-db", ...)`
+> Result: id="rule-0102"
+> Tool call: `add_audit_comment(change_request_id="91", event="candidate_written", detail="Rule allow-payments-app-to-db", scm_reference="rule-0102")`
+> Tool call: `write_config_file(filename="allow-payments-app-to-db.yaml", file_type="security_rule", content="""
+> schema_version: 1
+> name: "allow-payments-app-to-db"
+> description: "Payments Platform v2 — MySQL from app zone to db zone"
+> from:
+>   - "app-zone"
+> to:
+>   - "db-zone"
+> source:
+>   - "app-subnet-10.2.0.0-24"
+> source_user:
+>   - "any"
+> destination:
+>   - "db-subnet-10.3.0.0-24"
+> service:
+>   - "application-default"
+> application:
+>   - "mysql"
+> category:
+>   - "any"
+> action: "allow"
+> tag:
+>   - "firepilot-managed"
+> log_end: true
+> """)`
+> Result: file_path="/output/allow-payments-app-to-db.yaml", file_type="security_rule", file_size=395
+>
+> Tool call: `create_security_rule(ticket_id="91", folder="Shared", position="pre", name="allow-payments-app-to-fraud-api", ...)`
+> Result: id="rule-0103"
+> Tool call: `add_audit_comment(change_request_id="91", event="candidate_written", detail="Rule allow-payments-app-to-fraud-api", scm_reference="rule-0103")`
+> Tool call: `write_config_file(filename="allow-payments-app-to-fraud-api.yaml", file_type="security_rule", content="""
+> schema_version: 1
+> name: "allow-payments-app-to-fraud-api"
+> description: "Payments Platform v2 — SSL from app zone to external fraud detection API"
+> from:
+>   - "app-zone"
+> to:
+>   - "external-zone"
+> source:
+>   - "app-subnet-10.2.0.0-24"
+> source_user:
+>   - "any"
+> destination:
+>   - "payments-fraud-api-203.0.113.10"
+> service:
+>   - "application-default"
+> application:
+>   - "ssl"
+> category:
+>   - "any"
+> action: "allow"
+> tag:
+>   - "firepilot-managed"
+> log_end: true
+> """)`
+> Result: file_path="/output/allow-payments-app-to-fraud-api.yaml", file_type="security_rule", file_size=421
+>
+> Tool call: `create_security_rule(ticket_id="91", folder="Shared", position="pre", name="allow-payments-dmz-to-app", ...)`
+> Result: id="rule-0104"
+> Tool call: `add_audit_comment(change_request_id="91", event="candidate_written", detail="Rule allow-payments-dmz-to-app", scm_reference="rule-0104")`
+> Tool call: `write_config_file(filename="allow-payments-dmz-to-app.yaml", file_type="security_rule", content="""
+> schema_version: 1
+> name: "allow-payments-dmz-to-app"
+> description: "Payments Platform v2 — TLS load balancer health checks from dmz to app zone"
+> from:
+>   - "dmz-zone"
+> to:
+>   - "app-zone"
+> source:
+>   - "dmz-subnet-10.0.0.0-24"
+> source_user:
+>   - "any"
+> destination:
+>   - "app-subnet-10.2.0.0-24"
+> service:
+>   - "application-default"
+> application:
+>   - "ssl"
+> category:
+>   - "any"
+> action: "allow"
+> tag:
+>   - "firepilot-managed"
+> log_end: true
+> """)`
+> Result: file_path="/output/allow-payments-dmz-to-app.yaml", file_type="security_rule", file_size=405
 
-Processing complete. The workflow infrastructure commits the YAML,
-opens a PR, and CI validation triggers automatically.
+**Claude (internal):**
+> *Step 7a: Write rulebase manifest.*
+>
+> Existing rules from Step 4: (none — rulebase is empty)
+>
+> Tool call: `write_config_file(filename="_rulebase.yaml", file_type="rulebase_manifest", content="""
+> schema_version: 1
+> folder: "Shared"
+> position: "pre"
+> rule_order:
+>   - allow-payments-web-to-app
+>   - allow-payments-app-to-db
+>   - allow-payments-app-to-fraud-api
+>   - allow-payments-dmz-to-app
+> """)`
+> Result: file_path="/output/_rulebase.yaml", file_type="rulebase_manifest", file_size=152
+
+4 configuration files written (4 rules + 1 manifest). The skipped rule is
+documented in the analysis comment. The requestor can open a follow-up issue
+once the STAGING zone has been provisioned.
 
 ---
 
 ## Annotations
 
-- **Partial processing**: 4 of 5 rules were valid. Claude committed
+- **Partial processing**: 4 of 5 rules were valid. Claude processed
   the 4 valid rules without asking any questions or waiting for input.
 - **Skipped rule**: Rule 5 was skipped because the "STAGING" zone does
   not exist in firepilot.yaml. The analysis comment explains why and
@@ -130,7 +263,13 @@ opens a PR, and CI validation triggers automatically.
   the zone is provisioned).
 - **No question asked**: Claude did not pause to ask whether to proceed
   with the partial set. The autonomous processing directive requires
-  committing valid rules and documenting skipped ones.
+  processing valid rules and documenting skipped ones.
+- **write_config_file calls**: Each rule has a corresponding
+  `write_config_file` call after `create_security_rule`. The 4 rule files
+  plus `_rulebase.yaml` are the 5 artefacts committed by the workflow.
+- **Manifest includes only valid rules**: The skipped rule (STAGING) is
+  absent from `rule_order` — it was never created in SCM candidate config
+  and has no corresponding file.
 - **Audit trail**: The change request description records that only 4
   of 5 rules were created, preserving visibility for reviewers.
 - **Follow-up**: The requestor can open a new issue for rule 5 once

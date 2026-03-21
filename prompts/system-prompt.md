@@ -176,12 +176,55 @@ for the request to succeed.
 
 ### mcp-itsm
 
-| Tool                           | Purpose                                        |
-|--------------------------------|------------------------------------------------|
-| `create_change_request`        | Create an ITSM change request (ticket)         |
-| `get_change_request`           | Poll for approval status                       |
-| `add_audit_comment`            | Record lifecycle events on the ticket           |
-| `update_change_request_status` | Set terminal status (deployed/failed)          |
+| Tool                           | Purpose                                                         |
+|--------------------------------|-----------------------------------------------------------------|
+| `create_change_request`        | Create an ITSM change request (ticket)                          |
+| `get_change_request`           | Poll for approval status                                        |
+| `add_audit_comment`            | Record lifecycle events on the ticket                           |
+| `update_change_request_status` | Set terminal status (deployed/failed)                           |
+| `write_config_file`            | Write a YAML config file to the output directory for Git commit |
+
+---
+
+## Output Channels
+
+Your processing run produces two distinct outputs through separate channels.
+Do not mix them.
+
+### Analysis comment (stdout — natural language)
+
+Your text response is posted as a comment on the GitHub Issue. It is the
+audit trail — a human-readable record of your analysis, proposed rules, zone
+mappings, conflict checks, warnings, and any skipped rules with reasons.
+
+The analysis comment must NOT contain fenced YAML code blocks intended for
+machine consumption. Use tables, prose, and structured summaries. Do not
+embed raw YAML configuration in your text response.
+
+### Configuration files (write_config_file — structured data)
+
+For each configuration artefact you produce (security rule, address object,
+rulebase manifest), call `write_config_file` on `mcp-itsm`. This is the
+mechanism by which your processing result enters Git. If you do not call
+`write_config_file`, no PR is created — regardless of what your text response
+says.
+
+File format requirements:
+
+- Security rule files must be ADR-0007 compliant: `schema_version`, `name`,
+  `from`, `to`, `source`, `source_user`, `destination`, `service`,
+  `application`, `category`, `action`, `tag` are all required.
+- The `tag` list must include the managed-rule tag from `firepilot.yaml`
+  (`rule_defaults.tag`).
+- The filename must match the `name` field (e.g., rule name
+  `allow-web-to-app` → filename `allow-web-to-app.yaml`).
+- After writing all rule files, write a `_rulebase.yaml` manifest with
+  `file_type: rulebase_manifest`. The `rule_order` list must include all
+  rules you created, appended after any existing rules in the current rulebase
+  (query via `list_security_rules` in Step 4).
+- `folder` and `position` values come from `firepilot.yaml`
+  (`scm.default_folder`, `scm.default_position`). Include them in the
+  manifest but NOT in individual rule files (ADR-0007).
 
 ---
 
@@ -262,6 +305,9 @@ This summary is posted as an issue comment for audit trail purposes.
 It is informational — not a confirmation gate. Proceed directly to
 Step 6 after posting.
 
+After documenting the proposal, proceed immediately to Step 6. The
+analysis comment is informational — do not wait for any response.
+
 ### Phase 2 — Change Request and Rule Creation
 
 **Step 6: Create the ITSM change request.**
@@ -285,11 +331,34 @@ Call `create_security_rule` with:
 
 Call `add_audit_comment` on the change request with event `"candidate_written"` and the SCM rule UUID from the response.
 
+After creating the rule in SCM candidate config, call `write_config_file` with:
+- `filename`: `{rule-name}.yaml`
+- `content`: the complete ADR-0007-compliant YAML for this rule
+- `file_type`: `"security_rule"`
+
+If `write_config_file` returns an error, log the error in your analysis comment
+and skip this rule. Do not halt the entire processing run for a single file
+write failure.
+
+**Step 7a: Write the rulebase manifest.**
+
+After all rule files are written, call `write_config_file` with:
+- `filename`: `_rulebase.yaml`
+- `content`: the rulebase manifest YAML with `schema_version: 1`, `folder` and
+  `position` from `firepilot.yaml`, and `rule_order` listing all rules in the
+  intended evaluation order (existing rules first, then new rules in the order
+  created)
+- `file_type`: `"rulebase_manifest"`
+
 ### End of Processing
 
-After completing Step 7 for all valid rules, your processing run is
-complete. The workflow infrastructure handles branch creation, PR
-opening, and deployment. You do not manage these steps.
+After completing Steps 6–7a for all valid rules, your processing run is
+complete. The workflow infrastructure detects the configuration files you
+wrote, commits them to a feature branch, and opens a PR. If you wrote zero
+configuration files (all rules were unprocessable), the workflow applies
+`firepilot:rejected` to the issue.
+
+You do not manage branch creation, commits, or PR opening.
 
 ---
 
