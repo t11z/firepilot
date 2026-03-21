@@ -563,6 +563,62 @@ class SCMClient:
             position=position,
         )
 
+    async def create_address(
+        self,
+        folder: str,
+        address_body: dict[str, Any],  # Any: request body is untyped JSON for external API
+    ) -> SCMResult:
+        """Create an address object in SCM candidate configuration.
+
+        Maps to: POST /config/objects/v1/addresses
+
+        Args:
+            folder: Folder scope query parameter (required, max 64 chars).
+            address_body: Request body dict with SCM field names. Must include
+                          the required 'name' field.
+
+        Returns:
+            SCMResult with the created address object including server-assigned id.
+
+        Raises:
+            SCMAuthError: On token acquisition failure.
+            SCMAPIError: On HTTP error or network failure.
+        """
+        return await self._post(
+            "create_address",
+            "/config/objects/v1/addresses",
+            json_body=address_body,
+            folder=folder,
+        )
+
+    async def create_address_group(
+        self,
+        folder: str,
+        group_body: dict[str, Any],  # Any: request body is untyped JSON for external API
+    ) -> SCMResult:
+        """Create an address group in SCM candidate configuration.
+
+        Maps to: POST /config/objects/v1/address-groups
+
+        Args:
+            folder: Folder scope query parameter (required, max 64 chars).
+            group_body: Request body dict with SCM field names. Must include
+                        the required 'name' and 'static' fields.
+
+        Returns:
+            SCMResult with the created address group including server-assigned id.
+
+        Raises:
+            SCMAuthError: On token acquisition failure.
+            SCMAPIError: On HTTP error or network failure.
+        """
+        return await self._post(
+            "create_address_group",
+            "/config/objects/v1/address-groups",
+            json_body=group_body,
+            folder=folder,
+        )
+
     async def push_candidate_config(
         self,
         folders: list[str],

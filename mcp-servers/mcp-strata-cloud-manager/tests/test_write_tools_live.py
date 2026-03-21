@@ -1,7 +1,8 @@
 """Integration tests for write tools in live mode.
 
-Verifies that create_security_rule delegates to SCMClient in live mode and
-that demo mode continues to return fixture data (regression guard).
+Verifies that create_security_rule, create_address, and create_address_group
+delegate to SCMClient in live mode and that demo mode continues to return
+fixture data (regression guard).
 
 No network access is required. SCMClient is mocked at the module level in
 mcp_strata_cloud_manager.tools.write by patching get_scm_client and get_settings.
@@ -318,3 +319,261 @@ class TestDemoModeRegression:
         )
         assert "error" in data
         assert data["error"]["code"] == "MISSING_TICKET_REF"
+
+
+# ---------------------------------------------------------------------------
+# Helpers for create_address and create_address_group live-mode tests
+# ---------------------------------------------------------------------------
+
+
+_CREATED_ADDRESS_RESPONSE: dict[str, Any] = {
+    "id": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+    "name": "new-server",
+    "description": "A new server",
+    "tag": [],
+    "ip_netmask": "192.168.1.1/32",
+    "ip_range": None,
+    "ip_wildcard": None,
+    "fqdn": None,
+}
+
+_CREATED_GROUP_RESPONSE: dict[str, Any] = {
+    "id": "cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa",
+    "name": "new-group",
+    "description": "A new group",
+    "tag": [],
+    "static": ["new-server"],
+    "dynamic": None,
+}
+
+
+def _make_address_mock_client() -> MagicMock:
+    """Return a MagicMock SCMClient with create_address stubbed as AsyncMock."""
+    client = MagicMock(spec=SCMClient)
+    client.create_address = AsyncMock(
+        return_value=_make_scm_result(_CREATED_ADDRESS_RESPONSE)
+    )
+    return client
+
+
+def _make_group_mock_client() -> MagicMock:
+    """Return a MagicMock SCMClient with create_address_group stubbed as AsyncMock."""
+    client = MagicMock(spec=SCMClient)
+    client.create_address_group = AsyncMock(
+        return_value=_make_scm_result(_CREATED_GROUP_RESPONSE)
+    )
+    return client
+
+
+def _base_address_args() -> dict[str, Any]:
+    """Return minimal valid arguments for create_address."""
+    return {
+        "ticket_id": "CHG-addr-001",
+        "folder": "Shared",
+        "name": "new-server",
+        "ip_netmask": "192.168.1.1/32",
+    }
+
+
+def _base_group_args() -> dict[str, Any]:
+    """Return minimal valid arguments for create_address_group."""
+    return {
+        "ticket_id": "CHG-grp-001",
+        "folder": "Shared",
+        "name": "new-group",
+        "static": ["new-server"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Live mode — create_address
+# ---------------------------------------------------------------------------
+
+
+class TestCreateAddressLiveMode:
+    """create_address delegates to SCMClient and returns its data in live mode."""
+
+    async def test_calls_client_in_live_mode(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Tool calls client.create_address in live mode."""
+        mock_client = _make_address_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        await call_tool(server, "create_address", _base_address_args())
+
+        mock_client.create_address.assert_awaited_once()
+
+    async def test_returns_client_response_data(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Tool response body is the data returned by the client, not fixtures."""
+        mock_client = _make_address_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        data = await call_tool(server, "create_address", _base_address_args())
+
+        assert data["id"] == "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+        assert data["name"] == "new-server"
+
+    async def test_ticket_id_enforced_in_live_mode(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Empty ticket_id is rejected before the client is called in live mode."""
+        mock_client = _make_address_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        args = {**_base_address_args(), "ticket_id": ""}
+        data = await call_tool(server, "create_address", args)
+
+        assert "error" in data
+        assert data["error"]["code"] == "MISSING_TICKET_REF"
+        mock_client.create_address.assert_not_awaited()
+
+    async def test_whitespace_only_ticket_id_rejected(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Whitespace-only ticket_id is rejected before the client is called."""
+        mock_client = _make_address_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        args = {**_base_address_args(), "ticket_id": "   "}
+        data = await call_tool(server, "create_address", args)
+
+        assert "error" in data
+        assert data["error"]["code"] == "MISSING_TICKET_REF"
+        mock_client.create_address.assert_not_awaited()
+
+    async def test_scm_api_error_returns_structured_error(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SCMAPIError from the client returns SCM_API_ERROR error dict."""
+        mock_client = _make_address_mock_client()
+        mock_client.create_address = AsyncMock(
+            side_effect=SCMAPIError(
+                "SCM API returned HTTP 409",
+                http_status=409,
+                request_id="req-addr-409",
+                error_codes=["E006"],
+            )
+        )
+        _patch_live(monkeypatch, mock_client)
+
+        data = await call_tool(server, "create_address", _base_address_args())
+
+        assert "error" in data
+        assert data["error"]["code"] == SCM_API_ERROR_CODE
+        assert data["error"]["scm_request_id"] == "req-addr-409"
+        assert "E006" in data["error"]["scm_error_codes"]
+
+    async def test_scm_auth_error_returns_auth_failure_code(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SCMAuthError from the client returns SCM_AUTH_FAILURE error dict."""
+        mock_client = _make_address_mock_client()
+        mock_client.create_address = AsyncMock(
+            side_effect=SCMAuthError("auth failed")
+        )
+        _patch_live(monkeypatch, mock_client)
+
+        data = await call_tool(server, "create_address", _base_address_args())
+
+        assert "error" in data
+        assert data["error"]["code"] == SCM_AUTH_FAILURE_CODE
+
+
+# ---------------------------------------------------------------------------
+# Live mode — create_address_group
+# ---------------------------------------------------------------------------
+
+
+class TestCreateAddressGroupLiveMode:
+    """create_address_group delegates to SCMClient and returns its data in live mode."""
+
+    async def test_calls_client_in_live_mode(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Tool calls client.create_address_group in live mode."""
+        mock_client = _make_group_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        await call_tool(server, "create_address_group", _base_group_args())
+
+        mock_client.create_address_group.assert_awaited_once()
+
+    async def test_returns_client_response_data(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Tool response body is the data returned by the client, not fixtures."""
+        mock_client = _make_group_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        data = await call_tool(server, "create_address_group", _base_group_args())
+
+        assert data["id"] == "cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa"
+        assert data["name"] == "new-group"
+
+    async def test_ticket_id_enforced_in_live_mode(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Empty ticket_id is rejected before the client is called in live mode."""
+        mock_client = _make_group_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        args = {**_base_group_args(), "ticket_id": ""}
+        data = await call_tool(server, "create_address_group", args)
+
+        assert "error" in data
+        assert data["error"]["code"] == "MISSING_TICKET_REF"
+        mock_client.create_address_group.assert_not_awaited()
+
+    async def test_whitespace_only_ticket_id_rejected(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Whitespace-only ticket_id is rejected before the client is called."""
+        mock_client = _make_group_mock_client()
+        _patch_live(monkeypatch, mock_client)
+
+        args = {**_base_group_args(), "ticket_id": "   "}
+        data = await call_tool(server, "create_address_group", args)
+
+        assert "error" in data
+        assert data["error"]["code"] == "MISSING_TICKET_REF"
+        mock_client.create_address_group.assert_not_awaited()
+
+    async def test_scm_api_error_returns_structured_error(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SCMAPIError from the client returns SCM_API_ERROR error dict."""
+        mock_client = _make_group_mock_client()
+        mock_client.create_address_group = AsyncMock(
+            side_effect=SCMAPIError(
+                "SCM API returned HTTP 409",
+                http_status=409,
+                request_id="req-grp-409",
+                error_codes=["E006"],
+            )
+        )
+        _patch_live(monkeypatch, mock_client)
+
+        data = await call_tool(server, "create_address_group", _base_group_args())
+
+        assert "error" in data
+        assert data["error"]["code"] == SCM_API_ERROR_CODE
+        assert data["error"]["scm_request_id"] == "req-grp-409"
+        assert "E006" in data["error"]["scm_error_codes"]
+
+    async def test_scm_auth_error_returns_auth_failure_code(
+        self, server: FastMCP, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SCMAuthError from the client returns SCM_AUTH_FAILURE error dict."""
+        mock_client = _make_group_mock_client()
+        mock_client.create_address_group = AsyncMock(
+            side_effect=SCMAuthError("auth failed")
+        )
+        _patch_live(monkeypatch, mock_client)
+
+        data = await call_tool(server, "create_address_group", _base_group_args())
+
+        assert "error" in data
+        assert data["error"]["code"] == SCM_AUTH_FAILURE_CODE

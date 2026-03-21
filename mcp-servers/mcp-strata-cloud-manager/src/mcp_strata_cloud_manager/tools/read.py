@@ -16,13 +16,8 @@ import structlog
 from mcp.server.fastmcp import FastMCP
 
 from mcp_strata_cloud_manager.config import get_settings
-from mcp_strata_cloud_manager.fixtures.strata import (
-    FIXTURE_ADDRESS_GROUPS,
-    FIXTURE_ADDRESSES,
-    FIXTURE_SECURITY_RULES_POST,
-    FIXTURE_SECURITY_RULES_PRE,
-    FIXTURE_SECURITY_ZONES,
-)
+from mcp_strata_cloud_manager.fixtures.store import get_fixture_store
+from mcp_strata_cloud_manager.fixtures.strata import FIXTURE_SECURITY_ZONES
 from mcp_strata_cloud_manager.scm_client import (
     SCMAPIError,
     SCMAuthError,
@@ -159,11 +154,7 @@ def register_read_tools(mcp: FastMCP) -> None:
                 }
 
         # Demo mode: return fixture data
-        rules = (
-            FIXTURE_SECURITY_RULES_PRE
-            if position == "pre"
-            else FIXTURE_SECURITY_RULES_POST
-        )
+        rules = get_fixture_store().get_security_rules(position)
         result = _apply_filters(rules, name, limit, offset)
         duration_ms = int((time.monotonic() - start) * 1000)
         logger.info(
@@ -384,7 +375,7 @@ def register_read_tools(mcp: FastMCP) -> None:
                 }
 
         # Demo mode: return fixture data
-        result = _apply_filters(FIXTURE_ADDRESSES, name, limit, offset)
+        result = _apply_filters(get_fixture_store().get_addresses(), name, limit, offset)
         duration_ms = int((time.monotonic() - start) * 1000)
         logger.info(
             "tool_call",
@@ -494,7 +485,9 @@ def register_read_tools(mcp: FastMCP) -> None:
                 }
 
         # Demo mode: return fixture data
-        result = _apply_filters(FIXTURE_ADDRESS_GROUPS, name, limit, offset)
+        result = _apply_filters(
+            get_fixture_store().get_address_groups(), name, limit, offset
+        )
         duration_ms = int((time.monotonic() - start) * 1000)
         logger.info(
             "tool_call",

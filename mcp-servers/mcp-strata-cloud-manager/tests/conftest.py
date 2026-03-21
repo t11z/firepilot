@@ -16,6 +16,18 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 from mcp_strata_cloud_manager.server import mcp as _mcp  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def reset_fixture_store() -> None:
+    """Reset the demo fixture store before each test for isolation.
+
+    This ensures that objects created by write tools in one test do not
+    pollute the fixture counts seen by subsequent tests.
+    """
+    from mcp_strata_cloud_manager.fixtures.store import get_fixture_store
+
+    get_fixture_store().reset()
+
+
 @pytest.fixture(scope="session")
 def server() -> FastMCP:
     """Return the shared FastMCP server instance with all tools registered."""
