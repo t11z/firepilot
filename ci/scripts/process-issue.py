@@ -154,15 +154,36 @@ async def run_agentic_loop(
     # produced by model_dump() on Anthropic SDK response objects
     messages: list[dict] = [{"role": "user", "content": user_content}]
 
+    # Build static cache structures once — these are identical across all iterations.
+    # Explicit cache breakpoints on tool definitions and system prompt ensure the
+    # static prefix is cached after the first API call (ADR-0013).
+    system_content: list[dict] = [
+        {
+            "type": "text",
+            "text": system_prompt,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+
+    tool_defs_with_cache: list[dict] = []
+    if tool_defs:
+        # Place cache_control only on the last tool — it marks the end of the
+        # static tool prefix for caching purposes.
+        tool_defs_with_cache = [*tool_defs[:-1], {
+            **tool_defs[-1],
+            "cache_control": {"type": "ephemeral"},
+        }]
+
     for iteration in range(MAX_AGENTIC_ITERATIONS):
         kwargs: dict = {
             "model": CLAUDE_MODEL,
             "max_tokens": CLAUDE_MAX_TOKENS,
-            "system": system_prompt,
+            "system": system_content,
             "messages": messages,
+            "cache_control": {"type": "ephemeral"},
         }
         if tool_defs:
-            kwargs["tools"] = tool_defs
+            kwargs["tools"] = tool_defs_with_cache
 
         response = None
         for attempt, delay in enumerate([0, *RATE_LIMIT_RETRY_DELAYS]):
@@ -223,8 +244,16 @@ async def run_agentic_loop(
             print("ERROR: No response received from Anthropic API.", file=sys.stderr)
             sys.exit(1)
 
+        usage = response.usage
+        cache_read = getattr(usage, "cache_read_input_tokens", 0)
+        cache_write = getattr(usage, "cache_creation_input_tokens", 0)
         print(
-            f"[iteration {iteration + 1}] stop_reason={response.stop_reason} "
+            f"[iteration {iteration + 1}] "
+            f"input={usage.input_tokens} "
+            f"cache_read={cache_read} "
+            f"cache_write={cache_write} "
+            f"output={usage.output_tokens} "
+            f"stop_reason={response.stop_reason} "
             f"content_blocks={len(response.content)}",
             file=sys.stderr,
         )
