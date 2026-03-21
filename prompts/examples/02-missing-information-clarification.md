@@ -1,92 +1,137 @@
-# Example: Missing Information — Clarification Loop
+# Example: Partial Processing — Document-Based Extraction with Skipped Rules
 
-This example demonstrates how Claude handles an incomplete request where security-relevant fields are missing.
+This example demonstrates how Claude handles a document-based request
+where most rules can be extracted and processed, but one rule
+references a zone that does not exist in firepilot.yaml.
 
 ---
 
 ## Scenario
 
-A user requests a firewall rule but provides insufficient detail.
+A business user from Network Engineering attaches a PDF describing
+connectivity requirements for a new microservices deployment. The PDF
+specifies five firewall rules. Four rules map cleanly to zones defined
+in firepilot.yaml. The fifth references a zone named "STAGING" that
+does not exist in the configuration.
 
 ---
 
 ## Conversation
 
-**User:**
-> We need to open access to the database for the new reporting tool.
+**User (GitHub Issue — document_based mode):**
+> Application: Payments Platform v2
+> Request Mode: document_based
+> Supporting Documentation: [attached: payments-platform-network-requirements.pdf]
+> Business Justification: Microservices migration for Payments Platform v2. All rules defined in the attached architecture document.
 
-**Claude → User:**
-> I can help with that. I need a few more details to create the right
-> rule:
+**Claude (internal — not shown to user):**
+> *Step 1: Extract requirements from attached PDF.*
 >
-> 1. **Source**: Where will the reporting tool connect from? Which
->    zone and subnet?
-> 2. **Database address**: Which database servers specifically?
->    Subnet or IP range?
-> 3. **Application**: What protocol does the reporting tool use to
->    connect? (e.g. MySQL, PostgreSQL, HTTPS)
-> 4. **Action**: I assume you want to *allow* this traffic — correct?
-
-**User:**
-> It's coming from the app zone, subnet 10.2.0.0/24. Going to the
-> database zone on 10.3.0.0/24. It uses MySQL. And yes, allow.
-
-**Claude (internal):**
-> *Step 1 complete:*
-> - Source zone: app-zone, source address: 10.2.0.0/24
-> - Destination zone: db-zone, destination address: 10.3.0.0/24
-> - Application: mysql
-> - Action: allow
-> - Justification: not yet provided — must ask.
-
-**Claude → User:**
-> Got it. One more thing — I need a brief business justification for
-> the change request. Something like "Reporting tool requires direct
-> MySQL access to production database for scheduled report generation."
-> What should I record?
-
-**User:**
-> The BI team needs direct query access for their weekly dashboards.
-
-**Claude (internal):**
-> Justification captured. Proceed to Step 2.
-
-**Claude (internal):**
-> *Step 2: Validate zones.*
-> Tool call: `list_security_zones(folder="Shared")`
-> Result: app-zone ✓, db-zone ✓
-
-**Claude (internal):**
-> *Step 3: Check addresses.*
-> Tool call: `list_addresses(folder="Shared")`
-> Result: `app-subnet-10.2.0.0-24` ✓, `db-subnet-10.3.0.0-24` ✓
-
-**Claude (internal):**
-> *Step 4: Check conflicts.*
-> Tool call: `list_security_rules(folder="Shared", position="pre")`
-> Result: `allow-app-to-db` already exists — same zone pair, same
->         application (mysql), same source and destination addresses.
->         This is an exact duplicate.
-
-**Claude → User:**
-> I found an existing rule that already covers this access:
+> Extracted rules:
 >
-> **allow-app-to-db** — Allows MySQL traffic from app-zone
-> (10.2.0.0/24) to db-zone (10.3.0.0/24). This rule is already
-> active.
+> 1. Allow HTTPS from web-zone (10.1.0.0/24) to app-zone (10.2.0.0/24) — payments-api
+> 2. Allow MySQL from app-zone (10.2.0.0/24) to db-zone (10.3.0.0/24) — payments-db
+> 3. Allow HTTPS from app-zone (10.2.0.0/24) to external-zone (203.0.113.10/32) — fraud-detection API
+> 4. Allow TLS from dmz-zone (10.0.0.0/24) to app-zone (10.2.0.0/24) — load balancer health checks
+> 5. Allow HTTPS from STAGING (10.99.0.0/24) to app-zone (10.2.0.0/24) — staging integration tests
 >
-> The access your BI team needs is already permitted. No new rule is
-> required. Would you like me to help with anything else?
+> Checking zone mappings against firepilot.yaml zones:
+> - web-zone → present ✓
+> - app-zone → present ✓
+> - db-zone → present ✓
+> - external-zone → present ✓
+> - dmz-zone → present ✓
+> - STAGING → NOT FOUND — no zone with this name or role exists in firepilot.yaml
+>
+> Rules 1–4: proceed to Steps 2–4.
+> Rule 5: skip — zone cannot be resolved.
+
+**Claude (internal):**
+> *Steps 2–4 for Rules 1–4 (executed independently per rule):*
+>
+> Rule 1 (allow-payments-web-to-app):
+> - Zones validated ✓
+> - Addresses: web-subnet-10.1.0.0-24 ✓, app-subnet-10.2.0.0-24 ✓
+> - No conflict detected ✓
+>
+> Rule 2 (allow-payments-app-to-db):
+> - Zones validated ✓
+> - Addresses: app-subnet-10.2.0.0-24 ✓, db-subnet-10.3.0.0-24 ✓
+> - No conflict detected ✓
+>
+> Rule 3 (allow-payments-app-to-fraud-api):
+> - Zones validated ✓
+> - Address 203.0.113.10/32: no existing object — will create
+>   payments-fraud-api-203.0.113.10 in Phase 2
+> - No conflict detected ✓
+>
+> Rule 4 (allow-payments-dmz-to-app):
+> - Zones validated ✓
+> - Addresses: dmz-subnet-10.0.0.0-24 ✓, app-subnet-10.2.0.0-24 ✓
+> - No conflict detected ✓
+
+**Claude → Issue comment (Step 5 — analysis comment):**
+> ## FirePilot Analysis — Partial Processing
+>
+> Extracted 5 rules from `payments-platform-network-requirements.pdf`.
+> 4 rules validated successfully and will be created. 1 rule was
+> skipped (see below).
+>
+> ### Rules to be created
+>
+> | # | Rule name                        | Source                        | Destination                  | App/Service | Action |
+> |---|----------------------------------|-------------------------------|------------------------------|-------------|--------|
+> | 1 | allow-payments-web-to-app        | web-zone / 10.1.0.0/24        | app-zone / 10.2.0.0/24       | ssl, web-browsing | Allow |
+> | 2 | allow-payments-app-to-db         | app-zone / 10.2.0.0/24        | db-zone / 10.3.0.0/24        | mysql       | Allow  |
+> | 3 | allow-payments-app-to-fraud-api  | app-zone / 10.2.0.0/24        | external-zone / 203.0.113.10 | ssl         | Allow  |
+> | 4 | allow-payments-dmz-to-app        | dmz-zone / 10.0.0.0/24        | app-zone / 10.2.0.0/24       | ssl         | Allow  |
+>
+> Rule 3 requires creation of address object
+> `payments-fraud-api-203.0.113.10`.
+>
+> ### Skipped Rules
+>
+> | # | Description                              | Reason                                                                              |
+> |---|------------------------------------------|-------------------------------------------------------------------------------------|
+> | 5 | HTTPS from STAGING to app-zone           | Rule skipped: no zone named "STAGING" or with role "staging" exists in firepilot.yaml. To include this rule, open a follow-up issue after the STAGING zone has been provisioned. |
+>
+> Proceeding to change request creation for the 4 valid rules.
+
+**Claude (internal):**
+> *Step 6: Create change request.*
+> Tool call: `create_change_request(title="Payments Platform v2 — network connectivity rules (partial)", description="4 of 5 rules from payments-platform-network-requirements.pdf. Rule 5 skipped: STAGING zone not found.", requestor="Network Engineering")`
+> Result: change_request_id="91"
+
+**Claude (internal):**
+> *Step 7: Create rules 1–4.*
+>
+> Rule 3: address object does not exist — create first.
+> Tool call: `create_address(ticket_id="91", folder="Shared", name="payments-fraud-api-203.0.113.10", ip_netmask="203.0.113.10/32", tag=["firepilot-managed"])`
+> Result: id="addr-0099"
+>
+> Tool call: `create_security_rule(ticket_id="91", folder="Shared", position="pre", name="allow-payments-web-to-app", ...)`
+> Result: id="rule-0101"
+> Tool call: `add_audit_comment(change_request_id="91", event="candidate_written", detail="Rule allow-payments-web-to-app", scm_reference="rule-0101")`
+>
+> [repeated for rules 2, 3, 4]
+
+Processing complete. The workflow infrastructure commits the YAML,
+opens a PR, and CI validation triggers automatically.
 
 ---
 
 ## Annotations
 
-- **Step 1**: Claude did not assume any field values. Source zone,
-  address, application, and action were all explicitly requested.
-- **Justification**: Claude asked for the justification separately
-  rather than making one up.
-- **Step 4**: The conflict check detected an exact duplicate. Claude
-  stopped the workflow and informed the user instead of creating a
-  redundant rule. This is the correct behaviour — the workflow does
-  not always end with rule creation.
+- **Partial processing**: 4 of 5 rules were valid. Claude committed
+  the 4 valid rules without asking any questions or waiting for input.
+- **Skipped rule**: Rule 5 was skipped because the "STAGING" zone does
+  not exist in firepilot.yaml. The analysis comment explains why and
+  tells the requestor how to resolve it (open a follow-up issue after
+  the zone is provisioned).
+- **No question asked**: Claude did not pause to ask whether to proceed
+  with the partial set. The autonomous processing directive requires
+  committing valid rules and documenting skipped ones.
+- **Audit trail**: The change request description records that only 4
+  of 5 rules were created, preserving visibility for reviewers.
+- **Follow-up**: The requestor can open a new issue for rule 5 once
+  the STAGING zone has been added to firepilot.yaml.

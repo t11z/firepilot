@@ -1,12 +1,15 @@
 # Example: Happy Path — New Firewall Rule Creation
 
-This example demonstrates the full workflow from user request to deployed rule with no errors or missing information.
+This example demonstrates the full workflow from issue intake to rule
+committed in candidate configuration, with no errors or missing
+information.
 
 ---
 
 ## Scenario
 
-A business user from Platform Engineering requests HTTPS access from the web zone to the application zone for a new customer portal.
+A business user from Platform Engineering requests HTTPS access from
+the web zone to the application zone for a new customer portal.
 
 ---
 
@@ -48,27 +51,26 @@ A business user from Platform Engineering requests HTTPS access from the web zon
 >         `deny-direct-db-access` is unrelated (untrust → db-zone).
 >         No conflict detected.
 
-**Claude → User:**
-> Here's the rule I'll create for your customer portal:
+**Claude → Issue comment (Step 5 — analysis comment):**
+> ## FirePilot Analysis — Proposed Rule
 >
-> | Field         | Value                                        |
-> |---------------|----------------------------------------------|
-> | Rule name     | allow-web-to-app                             |
-> | Action        | Allow                                        |
-> | Source zone   | web-zone                                     |
-> | Source address| web-subnet-10.1.0.0-24 (10.1.0.0/24)        |
-> | Dest. zone   | app-zone                                     |
-> | Dest. address | app-subnet-10.2.0.0-24 (10.2.0.0/24)        |
-> | Applications  | SSL, Web Browsing                            |
-> | Service       | application-default                          |
-> | Logging       | Session end                                  |
-> | Profile       | best-practice                                |
+> All validation checks passed. The following rule will be created:
 >
-> I'll also create a change request for approval tracking.
-> Shall I proceed?
-
-**User:**
-> Yes, go ahead.
+> | Field          | Value                                        |
+> |----------------|----------------------------------------------|
+> | Rule name      | allow-web-to-app                             |
+> | Action         | Allow                                        |
+> | Source zone    | web-zone                                     |
+> | Source address | web-subnet-10.1.0.0-24 (10.1.0.0/24)        |
+> | Dest. zone     | app-zone                                     |
+> | Dest. address  | app-subnet-10.2.0.0-24 (10.2.0.0/24)        |
+> | Applications   | SSL, Web Browsing                            |
+> | Service        | application-default                          |
+> | Logging        | Session end                                  |
+> | Profile        | best-practice                                |
+> | Position       | pre                                          |
+>
+> No conflicts detected. Proceeding to change request creation.
 
 **Claude (internal):**
 > *Step 6: Create change request.*
@@ -82,54 +84,23 @@ A business user from Platform Engineering requests HTTPS access from the web zon
 >
 > Tool call: `add_audit_comment(change_request_id="43", event="candidate_written", detail="Rule allow-web-to-app created in candidate config", scm_reference="00000000-0000-0000-0000-000000000004")`
 
-**Claude → User:**
-> Done. The rule has been written to the candidate configuration.
->
-> **Next step**: The change request needs approval before the rule
-> goes live. You can review and approve it here:
-> https://github.com/.../issues/43
->
-> Let me know once it's approved, and I'll deploy it.
-
-**User:**
-> It's been approved. Please deploy.
-
-**Claude (internal):**
-> *Step 9: Poll for approval.*
-> Tool call: `get_change_request(change_request_id="43")`
-> Result: status="approved" ✓
-
-**Claude (internal):**
-> *Step 10: Push candidate config.*
-> Tool call: `add_audit_comment(change_request_id="43", event="push_initiated", detail="Pushing candidate config to running")`
-> Tool call: `push_candidate_config(ticket_id="43", folders=["Shared"])`
-> Result: job_id="1234", status_str="FIN", result_str="OK"
-
-**Claude (internal):**
-> *Step 11: Verify and close.*
-> Tool call: `add_audit_comment(change_request_id="43", event="push_succeeded", detail="Push completed successfully", scm_reference="1234")`
-> Tool call: `update_change_request_status(change_request_id="43", status="deployed")`
-
-**Claude → User:**
-> The rule is now live. HTTPS traffic from the web zone to the app
-> zone is permitted.
->
-> Change request #43 has been closed as deployed.
+Processing complete. The workflow infrastructure commits the YAML,
+opens a PR, and CI validation triggers automatically.
 
 ---
 
 ## Annotations
 
 - **Step 1**: All required fields were present in the initial message.
-  No clarification needed. In practice, users often omit the
-  justification or the specific subnets — Claude must ask.
+  No clarification needed or sought — the workflow proceeds autonomously.
 - **Step 3**: Existing address objects were found and reused. If none
-  had existed, Claude would use raw CIDR notation in the rule.
-- **Step 4**: Conflict check found no issues. If a shadowing rule
-  existed, Claude would explain the conflict before proceeding.
-- **Step 5**: The user saw a human-readable summary, not YAML. Field
-  names are translated (e.g. "Dest. zone" not "to").
-- **Step 9**: The user reported approval verbally. Claude verified
-  via tool call — it did not trust the user's statement alone.
-- **Step 11**: Both audit trail entries (push_succeeded + status
-  update) are recorded before reporting success to the user.
+  had existed, Claude would have created them before Step 7.
+- **Step 4**: Conflict check found no issues. If a duplicate rule had
+  been detected, Claude would skip it and document the reason in the
+  analysis comment.
+- **Step 5**: The analysis comment is posted for audit trail purposes.
+  It is informational — Claude does not wait for confirmation before
+  proceeding to Step 6.
+- **Steps 6–7**: Change request created and rule written to candidate
+  config. The processing run ends here. Branch creation, PR opening,
+  and deployment are handled by the workflow infrastructure.
