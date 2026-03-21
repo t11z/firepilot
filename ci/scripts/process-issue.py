@@ -160,7 +160,43 @@ async def run_agentic_loop(
         if tool_defs:
             kwargs["tools"] = tool_defs
 
-        response = client.messages.create(**kwargs)
+        try:
+            response = client.messages.create(**kwargs)
+        except anthropic.AuthenticationError as exc:
+            print(
+                f"ERROR: Anthropic API authentication failed — check ANTHROPIC_API_KEY. "
+                f"Details: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        except anthropic.BadRequestError as exc:
+            print(
+                f"ERROR: Anthropic API rejected the request (400). "
+                f"Details: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        except anthropic.RateLimitError as exc:
+            print(
+                f"ERROR: Anthropic API rate limit exceeded. "
+                f"Details: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        except anthropic.APIStatusError as exc:
+            print(
+                f"ERROR: Anthropic API returned status {exc.status_code}. "
+                f"Details: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        except anthropic.APIConnectionError as exc:
+            print(
+                f"ERROR: Failed to connect to Anthropic API. "
+                f"Details: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
         print(
             f"[iteration {iteration + 1}] stop_reason={response.stop_reason} "
