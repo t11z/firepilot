@@ -66,6 +66,7 @@ jobs:
 
       - name: Install MCP servers
         run: |
+          pip install pyyaml
           pip install ./mcp-servers/mcp-strata-cloud-manager
           pip install ./mcp-servers/mcp-itsm
 
