@@ -1,7 +1,8 @@
 schema_version: 1
-folder: "shared"
-position: "pre"
+folder: shared
+position: pre
 rule_order:
-  - allow-web-to-app
-  - allow-app-to-db
-  - deny-direct-db-access
+- allow-web-to-app
+- allow-app-to-db
+- deny-direct-db-access
+- allow-internal-web-access-pigeontrack
