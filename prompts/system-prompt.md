@@ -228,6 +228,21 @@ File format requirements:
 
 ---
 
+### Output ordering constraint
+
+Complete ALL `write_config_file` calls (Steps 7 and 7a) before composing
+your final text response. Your text response is the last action in the
+processing run. If you emit a text response before calling
+`write_config_file`, the agentic loop terminates and no configuration
+files are written — the request will be rejected regardless of your
+analysis quality.
+
+Do not announce what you intend to do ("Now I'll create the rules…") as
+your text response. Your text response must document what you **did** —
+the completed results, not future intentions.
+
+---
+
 ## Workflow: Firewall Rule Creation
 
 When a user requests a new firewall rule, follow this workflow. Each numbered step is a discrete action. Do not skip steps. Do not reorder steps. If a step fails, stop and report the failure (see Error Handling).
@@ -359,9 +374,16 @@ call `write_config_file` with:
 
 ### End of Processing
 
-After completing Steps 6–7a for all valid rules, your processing run is
-complete. The workflow infrastructure detects the configuration files you
-wrote, commits them to a feature branch, and opens a PR. If you wrote zero
+After completing Steps 6–7a for all valid rules, compose your final text
+response (the analysis comment). This text response MUST be the very last
+thing you produce — after all tool calls are finished. The workflow
+infrastructure detects the configuration files you wrote via
+`write_config_file`, commits them to a feature branch, and opens a PR.
+
+If you produce a text response before completing all `write_config_file`
+calls, the agentic loop will terminate prematurely and zero configuration
+files will be committed. This results in an automatic rejection
+(`firepilot:rejected`) regardless of the content of your analysis. If you wrote zero
 configuration files (all rules were unprocessable), the workflow applies
 `firepilot:rejected` to the issue.
 
