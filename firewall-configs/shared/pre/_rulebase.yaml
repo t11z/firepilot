@@ -6,3 +6,4 @@ rule_order:
 - allow-app-to-db
 - deny-direct-db-access
 - allow-internal-web-access-pigeontrack
+- allow-internal-pigeontrack-web-access

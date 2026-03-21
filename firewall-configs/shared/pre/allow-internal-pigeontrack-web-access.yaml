@@ -1,0 +1,24 @@
+schema_version: 1
+name: allow-internal-pigeontrack-web-access
+description: Allow internal users web access to PigeonTrack application
+from:
+  - trust
+to:
+  - dmz
+source:
+  - pigeontrack-internal-users-10.10.0.0-16
+source_user:
+  - any
+destination:
+  - pigeontrack-dmz-server-10.20.0.50
+service:
+  - service-https
+  - service-http
+application:
+  - ssl
+  - web-browsing
+category:
+  - any
+action: allow
+tag:
+  - firepilot-managed
