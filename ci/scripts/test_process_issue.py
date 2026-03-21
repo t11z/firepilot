@@ -26,15 +26,26 @@ _TOOL_DEFS: list[dict] = []
 _TOOL_SESSION_MAP: dict = {}
 
 
-def _make_end_turn_response(text: str = "Analysis complete.") -> MagicMock:
+def _make_end_turn_response(
+    text: str = "Analysis complete.",
+    cache_read: int = 0,
+    cache_write: int = 0,
+) -> MagicMock:
     """Build a minimal mock Anthropic response with stop_reason=end_turn."""
     block = MagicMock()
     block.type = "text"
     block.text = text
 
+    usage = MagicMock()
+    usage.input_tokens = 100
+    usage.output_tokens = 50
+    usage.cache_read_input_tokens = cache_read
+    usage.cache_creation_input_tokens = cache_write
+
     response = MagicMock()
     response.stop_reason = "end_turn"
     response.content = [block]
+    response.usage = usage
     return response
 
 
@@ -61,6 +72,18 @@ async def test_run_agentic_loop_happy_path() -> None:
 
     assert result == "All good."
     client.messages.create.assert_called_once()
+
+    call_kwargs = client.messages.create.call_args.kwargs
+    # system must be a list of content blocks with cache_control
+    system = call_kwargs["system"]
+    assert isinstance(system, list)
+    assert len(system) == 1
+    block = system[0]
+    assert block["type"] == "text"
+    assert block["text"] == "You are a firewall assistant."
+    assert block["cache_control"] == {"type": "ephemeral"}
+    # top-level cache_control must be present
+    assert call_kwargs["cache_control"] == {"type": "ephemeral"}
 
 
 # ---------------------------------------------------------------------------
@@ -198,3 +221,65 @@ async def test_api_connection_error_exits_with_code_1() -> None:
         )
 
     assert exc_info.value.code == 1
+
+
+# ---------------------------------------------------------------------------
+# Prompt caching — new tests (ADR-0013)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_cache_metrics_logged_to_stderr(capsys: pytest.CaptureFixture) -> None:
+    """run_agentic_loop logs cache_read= and cache_write= fields on each iteration."""
+    client = MagicMock(spec=anthropic.Anthropic)
+    client.messages = MagicMock()
+    client.messages.create = MagicMock(
+        return_value=_make_end_turn_response("Done.", cache_read=1500, cache_write=3000)
+    )
+
+    await pi.run_agentic_loop(
+        client=client,
+        system_prompt="sys",
+        issue_body="body",
+        pdf_blocks=[],
+        tool_defs=_TOOL_DEFS,
+        tool_session_map=_TOOL_SESSION_MAP,
+    )
+
+    captured = capsys.readouterr()
+    assert "cache_read=1500" in captured.err
+    assert "cache_write=3000" in captured.err
+
+
+@pytest.mark.asyncio
+async def test_tool_cache_control_on_last_tool_only() -> None:
+    """When tool_defs is non-empty, only the last tool has cache_control in kwargs."""
+    tool_defs = [
+        {"name": "tool_a", "description": "First tool", "input_schema": {}},
+        {"name": "tool_b", "description": "Second tool", "input_schema": {}},
+        {"name": "tool_c", "description": "Third tool", "input_schema": {}},
+    ]
+
+    client = MagicMock(spec=anthropic.Anthropic)
+    client.messages = MagicMock()
+    client.messages.create = MagicMock(return_value=_make_end_turn_response())
+
+    await pi.run_agentic_loop(
+        client=client,
+        system_prompt="sys",
+        issue_body="body",
+        pdf_blocks=[],
+        tool_defs=tool_defs,
+        tool_session_map=_TOOL_SESSION_MAP,
+    )
+
+    call_kwargs = client.messages.create.call_args.kwargs
+    tools = call_kwargs["tools"]
+    assert len(tools) == 3
+    # First two tools must NOT have cache_control
+    assert "cache_control" not in tools[0]
+    assert "cache_control" not in tools[1]
+    # Last tool must have cache_control: ephemeral
+    assert tools[2]["cache_control"] == {"type": "ephemeral"}
+    # Original tool data preserved
+    assert tools[2]["name"] == "tool_c"
