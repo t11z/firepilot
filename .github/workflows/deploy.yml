@@ -104,3 +104,17 @@ jobs:
           DEPLOY_TAG="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::8}"
           git tag "$DEPLOY_TAG"
           git push origin "$DEPLOY_TAG"
+
+      - name: Remove pending label from originating issue
+        if: success() && steps.ticket.outputs.ticket_id != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          TICKET_ID="${{ steps.ticket.outputs.ticket_id }}"
+          if [ -n "$TICKET_ID" ]; then
+            echo "Removing firepilot:pending label from issue #${TICKET_ID}"
+            gh issue edit "$TICKET_ID" \
+              --repo "${{ github.repository }}" \
+              --remove-label "firepilot:pending" \
+              2>/dev/null || echo "Label already removed or not present"
+          fi

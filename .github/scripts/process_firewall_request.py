@@ -112,6 +112,26 @@ def add_label(repo: str, issue_number: int, label: str, github_token: str) -> No
     response.raise_for_status()
 
 
+def remove_label(repo: str, issue_number: int, label: str, github_token: str) -> None:
+    """Remove a label from the specified GitHub issue."""
+    url = (
+        f"{GITHUB_API_BASE}/repos/{repo}/issues"
+        f"/{issue_number}/labels/{label}"
+    )
+    response = requests.delete(
+        url,
+        headers={
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        timeout=30,
+    )
+    # 404 is acceptable — label may not be present
+    if response.status_code != 404:
+        response.raise_for_status()
+
+
 # ---------------------------------------------------------------------------
 # PDF handling
 # ---------------------------------------------------------------------------
@@ -461,6 +481,11 @@ def main() -> None:
         # This means rejection (unprocessable request per ADR-0014).
         print("No configuration files found in output directory.")
         write_github_output("proposal_valid", "false")
+
+        try:
+            remove_label(repo, issue_number, "firepilot:pending", github_token)
+        except requests.RequestException as exc:
+            print(f"WARNING: Failed to remove 'firepilot:pending' label: {exc}", file=sys.stderr)
 
         try:
             add_label(repo, issue_number, "firepilot:rejected", github_token)
