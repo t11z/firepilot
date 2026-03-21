@@ -307,10 +307,10 @@ class TestDemoModeRegression:
     async def test_list_security_zones_demo_returns_fixtures(
         self, server: FastMCP
     ) -> None:
-        """Demo mode returns all 4 fixture zones (unchanged from before this PR)."""
+        """Demo mode returns all 7 fixture zones (4 original + 3 PigeonTrack zones)."""
         data = await call_tool(server, "list_security_zones", {"folder": "Shared"})
-        assert data["total"] == 4
-        assert len(data["data"]) == 4
+        assert data["total"] == 7
+        assert len(data["data"]) == 7
 
     async def test_list_security_rules_demo_returns_fixtures(
         self, server: FastMCP

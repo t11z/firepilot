@@ -5,7 +5,7 @@ identical to what the live SCM API returns. Fixture data represents the
 "Shared" folder with a four-tier network segmentation model.
 
 UUID allocation:
-  Zones:          00000000-0000-0000-0001-000000000001 to ...0004
+  Zones:          00000000-0000-0000-0001-000000000001 to ...0007
   Addresses:      00000000-0000-0000-0002-000000000001 to ...0004
   Address Groups: 00000000-0000-0000-0003-000000000001
   Security Rules: 00000000-0000-0000-0004-000000000001 to ...0003
@@ -68,6 +68,51 @@ FIXTURE_SECURITY_ZONES: list[dict] = [
     {
         "id": "00000000-0000-0000-0001-000000000004",
         "name": "db-zone",
+        "folder": "Shared",
+        "enable_user_identification": False,
+        "enable_device_identification": False,
+        "dos_profile": None,
+        "dos_log_setting": None,
+        "network": [],
+        "zone_protection_profile": None,
+        "enable_packet_buffer_protection": False,
+        "log_setting": None,
+        "user_acl": {"include_list": [], "exclude_list": []},
+        "device_acl": {"include_list": [], "exclude_list": []},
+    },
+    {
+        "id": "00000000-0000-0000-0001-000000000005",
+        "name": "dmz",
+        "folder": "Shared",
+        "enable_user_identification": False,
+        "enable_device_identification": False,
+        "dos_profile": None,
+        "dos_log_setting": None,
+        "network": [],
+        "zone_protection_profile": None,
+        "enable_packet_buffer_protection": False,
+        "log_setting": None,
+        "user_acl": {"include_list": [], "exclude_list": []},
+        "device_acl": {"include_list": [], "exclude_list": []},
+    },
+    {
+        "id": "00000000-0000-0000-0001-000000000006",
+        "name": "trust",
+        "folder": "Shared",
+        "enable_user_identification": False,
+        "enable_device_identification": False,
+        "dos_profile": None,
+        "dos_log_setting": None,
+        "network": [],
+        "zone_protection_profile": None,
+        "enable_packet_buffer_protection": False,
+        "log_setting": None,
+        "user_acl": {"include_list": [], "exclude_list": []},
+        "device_acl": {"include_list": [], "exclude_list": []},
+    },
+    {
+        "id": "00000000-0000-0000-0001-000000000007",
+        "name": "mgmt",
         "folder": "Shared",
         "enable_user_identification": False,
         "enable_device_identification": False,

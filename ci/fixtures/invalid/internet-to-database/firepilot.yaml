@@ -1,0 +1,18 @@
+# firepilot.yaml for internet-to-database fixture.
+# Used with --zones to activate topology policies for this OPA test.
+
+schema_version: 1
+scm:
+  default_folder: "Shared"
+  default_position: "pre"
+rule_defaults:
+  tag: "firepilot-managed"
+  log_end: true
+  log_start: false
+zones:
+  untrust:
+    role: internet
+    description: "External internet-facing zone"
+  db-zone:
+    role: database
+    description: "Database servers"

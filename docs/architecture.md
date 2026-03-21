@@ -123,7 +123,7 @@ flowchart TD
     subgraph Processing ["2 — AI Processing"]
         C --> D[Workflow extracts Issue body<br>+ downloads PDF attachments]
         D --> E[Claude API invoked with<br>system prompt + Issue context + PDFs]
-        E --> F[Claude reads zones.yaml<br>for topology context]
+        E --> F[Claude reads firepilot.yaml<br>for topology context]
         F --> G[Claude calls mcp-strata tools:<br>list_security_zones<br>list_addresses<br>list_address_groups<br>list_security_rules]
         G --> H{Conflict or<br>policy violation?}
         H -- Yes --> I[Claude posts rejection<br>comment on Issue]
@@ -172,7 +172,7 @@ flowchart LR
 | Layer | Enforcement point | Independence guarantee | ADR |
 |---|---|---|---|
 | 1 — Issue Template | GitHub Issue form | Structural guidance only; not a validation gate | ADR-0009 |
-| 2 — Claude Prompt | Claude's system prompt and orchestration logic | Zone topology from `zones.yaml`; does not bypass OPA | ADR-0008 |
+| 2 — Claude Prompt | Claude's system prompt and orchestration logic | Zone topology from `firepilot.yaml`; does not bypass OPA | ADR-0008 |
 | 3 — CI/CD | GitHub Actions: `check-jsonschema` + OPA + dry-run | Validates config files on their own merits; does not trust Claude | ADR-0003 |
 | 4 — MCP / API | MCP server-side checks + SCM API validation | `ticket_id` enforced structurally; SCM rejects invalid payloads | ADR-0004, ADR-0006 |
 
@@ -185,8 +185,8 @@ Firewall configuration is stored as YAML in Git (ADR-0001, ADR-0007).
 ### Directory structure
 
 ```
+firepilot.yaml                      # Operator configuration: SCM defaults, rule defaults, zone topology (ADR-0012)
 firewall-configs/
-├── zones.yaml                      # Zone topology mapping (ADR-0008)
 └── {folder}/                       # SCM folder name
     └── {position}/                 # pre | post
         ├── _rulebase.yaml          # Ordering manifest
@@ -234,7 +234,7 @@ erDiagram
   directory path
 - Every entry in `rule_order` must have a corresponding `.yaml` file
   (and vice versa)
-- Every zone in a rule's `from`/`to` must exist in `zones.yaml`
+- Every zone in a rule's `from`/`to` must exist in `firepilot.yaml` zones
 - Every rule must include `"firepilot-managed"` in its `tag` list
 - No rule may contain `id`, `folder`, or `position` fields
 - No `allow` rule may route internet → database or internet → management
@@ -321,7 +321,7 @@ the push.
 
 ## 8 — Zone Topology Model (ADR-0008)
 
-`firewall-configs/zones.yaml` maps SCM zone names to architectural
+The `zones` section of `firepilot.yaml` maps SCM zone names to architectural
 roles from a controlled vocabulary:
 
 | Role | Semantic meaning |
@@ -380,8 +380,8 @@ firepilot/
 ├── mcp-servers/
 │   ├── mcp-strata-cloud-manager/          # SCM API integration (ADR-0004)
 │   └── mcp-itsm/                          # ITSM integration (ADR-0005)
+├── firepilot.yaml                         # Operator configuration: SCM defaults, zone topology (ADR-0012)
 ├── firewall-configs/                      # Declarative YAML configs (ADR-0007)
-│   ├── zones.yaml                         # Zone topology mapping (ADR-0008)
 │   └── {folder}/{position}/               # Rule directories
 ├── prompts/                               # Claude system prompts, versioned
 │   └── examples/                          # Annotated prompt examples

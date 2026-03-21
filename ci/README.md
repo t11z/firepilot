@@ -45,7 +45,7 @@ Path filters: both workflows trigger only when `firewall-configs/**` or `ci/**` 
 
 Validates the structural correctness of all configuration files against their JSON Schemas:
 
-- `firewall-configs/zones.yaml` → `ci/schemas/zone-mapping.schema.json`
+- `firepilot.yaml` → `ci/schemas/firepilot-config.schema.json`
 - `firewall-configs/{folder}/{position}/_rulebase.yaml` → `ci/schemas/rulebase-manifest.schema.json`
 - `firewall-configs/{folder}/{position}/*.yaml` (rule files) → `ci/schemas/security-rule.schema.json`
 
@@ -59,7 +59,7 @@ reports the full set of violations rather than stopping at the first.
 Evaluates the `data.firepilot.validate.deny` rule in `ci/policies/firepilot.rego`
 against each `{folder}/{position}/` directory. The OPA input is assembled by
 `ci/scripts/build-opa-input.py`, which reads the manifest, rule files, and
-(when present) zone topology from `zones.yaml`.
+(when present) zone topology from `firepilot.yaml`.
 
 A non-empty `deny` set means the configuration violates at least one declared
 security policy. The violation message is printed and the gate fails.
@@ -257,7 +257,7 @@ ci/
 ├── schemas/
 │   ├── rulebase-manifest.schema.json   # Schema for _rulebase.yaml
 │   ├── security-rule.schema.json       # Schema for individual rule files
-│   └── zone-mapping.schema.json        # Schema for zones.yaml
+│   └── firepilot-config.schema.json    # Schema for firepilot.yaml (ADR-0012)
 ├── policies/
 │   ├── firepilot.rego           # OPA policy definitions
 │   └── firepilot_test.rego      # OPA policy unit tests

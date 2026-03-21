@@ -70,10 +70,10 @@ class TestListSecurityZones:
     """Tests for the list_security_zones tool."""
 
     async def test_list_security_zones_returns_all(self, server: FastMCP) -> None:
-        """Calling with folder 'Shared' returns all 4 fixture zones."""
+        """Calling with folder 'Shared' returns all 7 fixture zones."""
         data = await call_tool(server, "list_security_zones", {"folder": "Shared"})
-        assert data["total"] == 4
-        assert len(data["data"]) == 4
+        assert data["total"] == 7
+        assert len(data["data"]) == 7
 
     async def test_list_security_zones_filter_by_name(self, server: FastMCP) -> None:
         """Filtering by name 'untrust-zone' returns exactly 1 zone."""
