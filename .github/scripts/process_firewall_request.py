@@ -37,9 +37,13 @@ import yaml
 # Constants
 # ---------------------------------------------------------------------------
 
-# GitHub attachment URL pattern: [filename.pdf](https://github.com/user-attachments/assets/...)
+# GitHub attachment URL pattern — two URL shapes are in use:
+#   Legacy (files uploaded before ~2024):
+#     https://github.com/user-attachments/files/<id>/<filename>
+#   Current (asset pipeline):
+#     https://github.com/user-attachments/assets/<uuid>
 PDF_ATTACHMENT_RE = re.compile(
-    r'\[([^\]]+\.pdf)\]\((https://github\.com/user-attachments/assets/[^\)]+)\)',
+    r'\[([^\]]+\.pdf)\]\((https://github\.com/user-attachments/(?:assets|files)/[^\)]+)\)',
     re.IGNORECASE,
 )
 
@@ -121,8 +125,9 @@ def add_label(repo: str, issue_number: int, label: str, github_token: str) -> No
 def parse_pdf_attachments(issue_body: str) -> list[tuple[str, str]]:
     """Extract (filename, url) pairs for PDF attachments from the issue body.
 
-    GitHub renders uploaded files as Markdown links in the format:
-        [filename.pdf](https://github.com/user-attachments/assets/...)
+    GitHub renders uploaded files as Markdown links in one of two formats:
+        [filename.pdf](https://github.com/user-attachments/assets/...)   # current
+        [filename.pdf](https://github.com/user-attachments/files/...)    # legacy
     """
     return PDF_ATTACHMENT_RE.findall(issue_body)
 
