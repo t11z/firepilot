@@ -19,6 +19,7 @@ _HYPHENATED_MODULES: dict[str, str] = {
     "gate4_deploy": "gate4-deploy.py",
     "drift_check": "drift-check.py",
     "retry_deploy": "retry-deploy.py",
+    "process_issue": "process-issue.py",
 }
 
 
