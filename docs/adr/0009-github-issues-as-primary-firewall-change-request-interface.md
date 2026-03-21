@@ -364,3 +364,205 @@ for attachment upload.
   queue-based processing model
 - If GitHub Issue Template forms gain support for native file upload
   fields, simplify the attachment handling instructions
+
+---
+
+## Amendment: Flexible Request Modes (2026-03-21)
+
+| Field     | Value                                   |
+|-----------|-----------------------------------------|
+| Amended   | Issue Template Specification, Request Flow §1 |
+| Reason    | The original template assumes one rule per request. Real-world change requests — particularly document-driven ones — may require multiple rules extracted from a single submission. |
+| Related   | ADR-0012 (Centralised Operator Configuration) |
+
+---
+
+### Problem Statement
+
+The original Issue Template requires the requestor to fill in
+Source Zone, Destination Zone, and Required Ports as mandatory text
+inputs. This design maps each issue to exactly one firewall rule.
+
+Three scenarios do not fit this model:
+
+1. **Document-driven requests**: A business unit attaches an
+   application operations manual that specifies multiple firewall
+   rules (e.g., PigeonTrack FW-PT-01 through FW-PT-07). The
+   requestor's intent is "implement the firewall requirements from
+   this document" — they should not need to decompose the document
+   into individual template submissions.
+
+2. **Multi-rule structured requests**: A requestor knows the exact
+   rules they need but there are several, each with different
+   zone pairs and ports. Filing seven identical issues for one
+   application deployment is operationally wasteful and breaks the
+   audit trail (one application → one change request).
+
+3. **Single structured rule**: The existing model. A requestor
+   specifies exactly one source/destination/port combination.
+
+Additionally, the original template did not account for the SCM
+target folder, which is an operator-level decision (ADR-0012), not
+a requestor input. Claude was observed asking users for the target
+folder during processing — this must be prevented by design.
+
+### Amended Issue Template Specification
+
+The Issue Template is redesigned with a **request mode dropdown** that
+determines which fields are semantically required. GitHub Issue
+Template forms do not support conditional field visibility — all
+fields are always rendered. The mode dropdown governs how Claude
+(Layer 2) interprets the submission, not which fields GitHub displays.
+
+#### Template Field Specification
+
+| Field                        | Template Element | Condition                                           |
+|------------------------------|------------------|-----------------------------------------------------|
+| Application Name             | text input       | Always required                                     |
+| Business Unit                | text input       | Always required                                     |
+| Request Mode                 | dropdown         | Always required. Options: see below                 |
+| Source Zone / Network        | text input       | Required for `Single Rule`. Informational otherwise  |
+| Destination Zone / Network   | text input       | Required for `Single Rule`. Informational otherwise  |
+| Required Ports / Services    | text input       | Required for `Single Rule`. Informational otherwise  |
+| Additional Rules             | textarea         | Used for `Multiple Rules` mode. Optional otherwise   |
+| Business Justification       | textarea         | Always required                                     |
+| Supporting Documentation     | textarea (attachment) | Always available. Especially important for `Document-Based` mode |
+
+#### Request Mode Options
+
+The dropdown `request_mode` offers three options:
+
+| Mode               | Label in dropdown                        | Meaning                                                                    |
+|--------------------|------------------------------------------|----------------------------------------------------------------------------|
+| `single_rule`      | Single rule — I'll specify the details   | Requestor fills in Source Zone, Destination Zone, Ports. Maps to one rule.  |
+| `multiple_rules`   | Multiple rules — I'll list them          | Requestor fills in the metadata fields, then lists rules in the Additional Rules textarea (one rule per block, freeform or semi-structured). |
+| `document_based`   | Document-based — see attached docs       | Requestor fills in metadata and attaches documentation. Claude extracts all required rules from the attached PDFs. Technical fields may be left empty or contain high-level summaries. |
+
+#### Validation Responsibility by Mode
+
+| Concern                         | `single_rule`         | `multiple_rules`      | `document_based`      |
+|---------------------------------|-----------------------|-----------------------|-----------------------|
+| Source/Dest/Ports filled in     | Layer 1 (Template)    | Layer 2 (Claude)      | Layer 2 (Claude)      |
+| Rule count determination        | Implicit (1)          | Layer 2 (Claude)      | Layer 2 (Claude)      |
+| Rule completeness               | Layer 1 + Layer 2     | Layer 2               | Layer 2               |
+| Zone existence validation       | Layer 2               | Layer 2               | Layer 2               |
+| Policy compliance               | Layer 3 (OPA)         | Layer 3 (OPA)         | Layer 3 (OPA)         |
+
+In all modes, Layer 3 (OPA) and Layer 4 (MCP server-side) enforcement
+remain unchanged — they validate the generated configuration
+regardless of how it was requested.
+
+### Amended Request Flow — §1 Submission
+
+The requestor creates a new issue using the
+`firewall-change-request` template. The template captures:
+
+| Field                        | Template Element  | Description                                              |
+|------------------------------|-------------------|----------------------------------------------------------|
+| Application Name             | text input        | Name of the application or service                       |
+| Business Unit                | text input        | Requesting team or department                            |
+| Request Mode                 | dropdown          | `single_rule`, `multiple_rules`, or `document_based`     |
+| Source Zone / Network        | text input        | Origin of the traffic (primary field for `single_rule`)  |
+| Destination Zone / Network   | text input        | Target of the traffic (primary field for `single_rule`)  |
+| Required Ports / Services    | text input        | Ports or services (primary field for `single_rule`)      |
+| Additional Rules             | textarea          | Freeform rule descriptions for `multiple_rules` mode     |
+| Business Justification       | textarea          | Why this change is needed                                |
+| Supporting Documentation     | textarea          | PDF attachments (instructions unchanged from original)   |
+
+The template applies the `firepilot:pending` label automatically on
+creation.
+
+### Claude Processing Behaviour by Mode
+
+This section specifies how Claude (Layer 2) interprets each mode.
+The processing workflow (§2 Trigger) is unchanged — Claude receives
+the full issue body and attachments in all modes.
+
+#### `single_rule` mode
+
+Claude treats the Source Zone, Destination Zone, and Ports fields as
+the primary specification. Attached documentation is supplementary
+context. Processing follows the existing Step 1–11 workflow for a
+single rule. If the technical fields are empty or contain
+placeholders despite `single_rule` being selected, Claude asks the
+requestor for clarification via an issue comment.
+
+#### `multiple_rules` mode
+
+Claude parses the Additional Rules textarea for rule specifications.
+The format is deliberately flexible — requestors may use tables,
+bullet lists, or prose. Claude extracts each distinct rule, validates
+all of them (zone existence, conflict detection, policy compliance),
+and generates a separate YAML rule file per rule. All rules are
+committed to a single feature branch and PR, maintaining the
+one-application-one-change-request principle.
+
+If the Additional Rules field is ambiguous, Claude posts a
+clarification request on the issue before generating configuration.
+
+The Source Zone / Destination Zone / Ports fields, if filled in
+alongside `multiple_rules` mode, are treated as the *first* rule.
+Additional rules are additive.
+
+#### `document_based` mode
+
+Claude extracts firewall requirements from the attached PDF
+documentation. The Source Zone, Destination Zone, and Ports fields
+are treated as optional hints — if filled in, they provide
+directional context but do not constrain the extraction.
+
+Claude maps the document's network terminology to SCM zone names
+using the zone topology from `firepilot.yaml` (ADR-0012). If the
+mapping is ambiguous (e.g., the document says "DMZ" but multiple
+zones could correspond), Claude posts a clarification request
+listing the available zones and asking the requestor to confirm the
+mapping.
+
+As with `multiple_rules`, all extracted rules are committed to a
+single feature branch and PR.
+
+### Operator Configuration Integration (ADR-0012)
+
+The Issue Template does not include any field for SCM folder or
+position. These values are read from `firepilot.yaml`
+(`scm.default_folder`, `scm.default_position`) by the processing
+workflow and by Claude. The requestor has no ability to override
+them.
+
+The system prompt is updated to include an explicit instruction:
+"Never ask the requestor for the target SCM folder or rulebase
+position. These are operator-level settings defined in
+`firepilot.yaml`."
+
+### Consequences of this Amendment
+
+- **Positive**: The PigeonTrack demo scenario is fully supported —
+  a single issue with an attached operations manual triggers
+  extraction of all seven firewall rules
+- **Positive**: Requestors with detailed technical knowledge can
+  use `single_rule` or `multiple_rules` mode for precise control
+- **Positive**: Requestors without firewall expertise can use
+  `document_based` mode, delegating extraction to Claude
+- **Positive**: The audit trail remains one issue per application,
+  regardless of how many rules are generated
+- **Negative**: GitHub Issue Template forms cannot conditionally
+  hide fields — in `document_based` mode, the Source Zone /
+  Destination Zone / Ports fields are visible but semantically
+  optional, which may confuse requestors. Mitigation: field
+  descriptions and placeholder text explain this clearly per mode
+- **Negative**: `document_based` mode places significantly more
+  responsibility on Claude (Layer 2) for correct extraction. Layers
+  3 and 4 still validate the output, but a missed rule in extraction
+  is invisible to automated validation — only human review of the PR
+  can catch it
+- **Follow-up required**: Update the Issue Template YAML at
+  `.github/ISSUE_TEMPLATE/firewall-change-request.yml`
+- **Follow-up required**: Update the system prompt to handle the
+  three request modes and to never ask for folder/position
+- **Follow-up required**: Update `process-firewall-request.yml` to
+  support multi-rule commits (multiple YAML files + manifest update
+  per PR)
+- **Follow-up required**: Update `ci/README.md` manual test
+  instructions with a `document_based` test scenario
+- **Follow-up required**: Update `demo/example-issue.md` to
+  demonstrate the PigeonTrack `document_based` scenario
