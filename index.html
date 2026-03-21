@@ -32,7 +32,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 13px;
+      font-size: 19.5px;
       line-height: 1.7;
       -webkit-font-smoothing: antialiased;
     }
@@ -57,18 +57,18 @@
     }
     .logo {
       display: flex; align-items: center; gap: 10px;
-      font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: 0.04em;
+      font-size: 21px; font-weight: 700; color: var(--text); letter-spacing: 0.04em;
     }
     .logo-icon {
       width: 22px; height: 22px;
       background: var(--accent);
       clip-path: polygon(50% 0%, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
       display: flex; align-items: center; justify-content: center;
-      font-size: 10px; color: #fff; font-weight: 700;
+      font-size: 15px; color: #fff; font-weight: 700;
       flex-shrink: 0;
     }
     .nav { display: flex; gap: 24px; }
-    .nav a { color: var(--muted); font-size: 12px; font-weight: 400; transition: color .15s; }
+    .nav a { color: var(--muted); font-size: 18px; font-weight: 400; transition: color .15s; }
     .nav a:hover { color: var(--text); text-decoration: none; }
 
     /* ── Hero ── */
@@ -81,7 +81,7 @@
       margin-bottom: 32px;
     }
     .prompt-sign { color: var(--accent); font-weight: 700; user-select: none; }
-    .prompt-text { color: var(--muted); font-size: 12px; }
+    .prompt-text { color: var(--muted); font-size: 18px; }
     .cursor {
       display: inline-block; width: 8px; height: 14px;
       background: var(--accent); margin-left: 2px;
@@ -90,7 +90,7 @@
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
     h1 {
-      font-size: clamp(28px, 5vw, 44px);
+      font-size: clamp(42px, 5vw, 66px);
       font-weight: 700;
       color: #fff;
       line-height: 1.15;
@@ -100,7 +100,7 @@
     h1 .accent { color: var(--accent); }
 
     .tagline {
-      font-size: 14px; color: var(--muted); max-width: 560px; line-height: 1.8;
+      font-size: 21px; color: var(--muted); max-width: 560px; line-height: 1.8;
       margin-bottom: 36px;
     }
 
@@ -112,7 +112,7 @@
       padding: 5px 12px;
       border: 1px solid var(--border-hi);
       border-radius: 4px;
-      font-size: 11px;
+      font-size: 16.5px;
       color: var(--muted);
       background: var(--bg-raised);
       letter-spacing: 0.03em;
@@ -129,7 +129,7 @@
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
       padding: 9px 18px;
-      font-family: var(--font); font-size: 12px; font-weight: 500;
+      font-family: var(--font); font-size: 18px; font-weight: 500;
       border-radius: 4px; cursor: pointer; transition: all .15s;
       letter-spacing: 0.02em;
     }
@@ -148,12 +148,12 @@
     .section:last-child { border-bottom: none; }
 
     .section-label {
-      font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+      font-size: 15px; font-weight: 500; letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--accent);
       margin-bottom: 12px;
     }
     h2 {
-      font-size: 22px; font-weight: 600; color: #fff;
+      font-size: 33px; font-weight: 600; color: #fff;
       margin-bottom: 28px; letter-spacing: -0.01em;
     }
 
@@ -178,7 +178,7 @@
       border: 1px solid var(--border-hi);
       border-radius: 4px;
       padding: 8px 14px;
-      font-size: 11px;
+      font-size: 16.5px;
       text-align: center;
       line-height: 1.4;
       background: var(--bg-raised);
@@ -189,11 +189,11 @@
     .flow-node.green { border-color: var(--green); color: var(--green); }
     .flow-node.blue  { border-color: var(--blue);  color: var(--blue); }
     .flow-arrow {
-      color: var(--muted); font-size: 16px; padding: 0 6px; line-height: 1;
+      color: var(--muted); font-size: 24px; padding: 0 6px; line-height: 1;
       align-self: center;
     }
     .flow-sub {
-      font-size: 10px; color: var(--muted); margin-top: 5px; text-align: center;
+      font-size: 15px; color: var(--muted); margin-top: 5px; text-align: center;
     }
 
     /* ── Pipeline gates ── */
@@ -220,9 +220,9 @@
     .gate.g3::before { background: var(--green); }
     .gate.g4::before { background: var(--accent); }
 
-    .gate-id { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
-    .gate-name { font-size: 12px; color: #fff; font-weight: 500; }
-    .gate-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .gate-id { font-size: 15px; color: var(--muted); letter-spacing: 0.06em; }
+    .gate-name { font-size: 18px; color: #fff; font-weight: 500; }
+    .gate-desc { font-size: 16.5px; color: var(--muted); margin-top: 2px; }
 
     /* ── ADR cards ── */
     .adr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
@@ -237,22 +237,22 @@
     .adr-card:hover { border-color: var(--border-hi); }
     .adr-card-header { display: flex; gap: 6px; flex-wrap: wrap; }
     .adr-tag {
-      font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+      font-size: 15px; font-weight: 500; letter-spacing: 0.06em;
       padding: 2px 8px;
       border-radius: 3px;
       background: var(--accent-lo);
       border: 1px solid var(--accent-mid);
       color: var(--accent);
     }
-    .adr-card-title { font-size: 12px; color: #fff; font-weight: 500; line-height: 1.5; }
-    .adr-card-body { font-size: 11px; color: var(--muted); line-height: 1.75; flex: 1; }
+    .adr-card-title { font-size: 18px; color: #fff; font-weight: 500; line-height: 1.5; }
+    .adr-card-body { font-size: 16.5px; color: var(--muted); line-height: 1.75; flex: 1; }
     .adr-card-body code {
-      font-family: var(--font); font-size: 10px;
+      font-family: var(--font); font-size: 15px;
       background: var(--bg-raised); border: 1px solid var(--border);
       padding: 1px 5px; border-radius: 3px; color: var(--green);
     }
     .adr-card-footer { display: flex; gap: 14px; padding-top: 4px; border-top: 1px solid var(--border); }
-    .adr-card-footer a { font-size: 11px; color: var(--muted); }
+    .adr-card-footer a { font-size: 16.5px; color: var(--muted); }
     .adr-card-footer a:hover { color: var(--accent); text-decoration: none; }
 
     /* ── Stack grid ── */
@@ -267,8 +267,8 @@
       border: 1px solid var(--border);
       border-radius: 5px;
     }
-    .stack-role { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 4px; }
-    .stack-tech { font-size: 12px; color: var(--text); font-weight: 500; }
+    .stack-role { font-size: 15px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 4px; }
+    .stack-tech { font-size: 18px; color: var(--text); font-weight: 500; }
 
     /* ── Demo block ── */
     .demo-card {
@@ -290,11 +290,11 @@
     .dot-bar .r { background: #ff5f56; }
     .dot-bar .y { background: #ffbd2e; }
     .dot-bar .g { background: #27c93f; }
-    .demo-file { font-size: 11px; color: var(--muted); margin-left: 4px; }
+    .demo-file { font-size: 16.5px; color: var(--muted); margin-left: 4px; }
 
     .demo-body { padding: 20px 20px; }
     .demo-body pre {
-      font-family: var(--font); font-size: 12px;
+      font-family: var(--font); font-size: 18px;
       line-height: 1.7; color: var(--text); white-space: pre;
       overflow-x: auto;
     }
@@ -314,9 +314,9 @@
       display: flex; justify-content: space-between; align-items: center;
       flex-wrap: wrap; gap: 12px;
     }
-    .footer-note { font-size: 11px; color: var(--muted); }
+    .footer-note { font-size: 16.5px; color: var(--muted); }
     .footer-links { display: flex; gap: 20px; }
-    .footer-links a { font-size: 11px; color: var(--muted); }
+    .footer-links a { font-size: 16.5px; color: var(--muted); }
     .footer-links a:hover { color: var(--text); text-decoration: none; }
 
     /* ── Disclaimer ── */
@@ -326,7 +326,7 @@
       background: rgba(227,179,65,0.06);
       border: 1px solid rgba(227,179,65,0.2);
       border-radius: 5px;
-      font-size: 11px; color: var(--muted); line-height: 1.7;
+      font-size: 16.5px; color: var(--muted); line-height: 1.7;
     }
     .disclaimer strong { color: var(--yellow); }
 
@@ -499,7 +499,7 @@
   <div class="wrap">
     <div class="section-label">// decisions</div>
     <h2>Key architectural decisions</h2>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:32px;max-width:600px;">
+    <p style="color:var(--muted);font-size: 18px;margin-bottom:32px;max-width:600px;">
       Every non-trivial decision is documented as an ADR — including rejected alternatives and the conditions under which the decision should be revisited.
       13 ADRs in total. <a href="https://github.com/t11z/firepilot/tree/main/docs/adr" target="_blank">Browse all →</a>
     </p>
@@ -710,4 +710,3 @@
 
 </body>
 </html>
-
