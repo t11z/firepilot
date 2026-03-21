@@ -1,5 +1,5 @@
 # firepilot.yaml for internet-to-database fixture.
-# Used with --zones to activate topology policies for this OPA test.
+# Used with --config to activate topology policies for this OPA test.
 
 schema_version: 1
 scm:
