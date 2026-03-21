@@ -54,10 +54,10 @@ echo "Gate 1 PASSED"
 echo ""
 echo "=== Gate 2: OPA Policy Evaluation ==="
 
-# Build zones flag if firepilot.yaml exists
-ZONES_FLAG=""
+# Build config flag if firepilot.yaml exists
+CONFIG_FLAG=""
 if [ -f "$FIREPILOT_CONFIG" ]; then
-  ZONES_FLAG="--zones $FIREPILOT_CONFIG"
+  CONFIG_FLAG="--config $FIREPILOT_CONFIG"
 fi
 
 for position_dir in "$CONFIG_DIR"/*/pre "$CONFIG_DIR"/*/post; do
@@ -68,7 +68,7 @@ for position_dir in "$CONFIG_DIR"/*/pre "$CONFIG_DIR"/*/post; do
 
   # shellcheck disable=SC2086
   DENY_RESULT=$(python "$CI_DIR/scripts/build-opa-input.py" \
-    "$position_dir" $ZONES_FLAG \
+    "$position_dir" $CONFIG_FLAG \
     | opa eval -i /dev/stdin \
       -d "$CI_DIR/policies/firepilot.rego" \
       -f raw \

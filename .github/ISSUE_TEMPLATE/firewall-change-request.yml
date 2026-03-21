@@ -1,8 +1,8 @@
 name: Firewall Change Request
 description: >
-  Submit a firewall rule change request for review and processing by FirePilot.
-  Supporting documentation (app deployment manual, architecture diagrams) can
-  be attached as PDF files.
+  Submit a firewall rule change request for review and processing by
+  FirePilot. You can specify a single rule, list multiple rules, or
+  attach documentation and let FirePilot extract the requirements.
 title: "[FCR] "
 labels:
   - "firepilot:pending"
@@ -11,67 +11,99 @@ body:
     id: application_name
     attributes:
       label: Application Name
-      description: Name of the application or service requiring the firewall rule.
-      placeholder: e.g. Customer Portal API
+      description: Name of the application or service requiring firewall rules.
+      placeholder: e.g. PigeonTrack, Customer Portal API
     validations:
       required: true
-
   - type: input
     id: business_unit
     attributes:
       label: Business Unit
       description: Requesting team or department.
-      placeholder: e.g. Platform Engineering
+      placeholder: e.g. Logistics Department, Platform Engineering
     validations:
       required: true
-
+  - type: dropdown
+    id: request_mode
+    attributes:
+      label: Request Mode
+      description: >
+        How are you providing the firewall rule details?
+      options:
+        - "Single rule — I'll specify the details"
+        - "Multiple rules — I'll list them"
+        - "Document-based — see attached docs"
+    validations:
+      required: true
   - type: input
     id: source_zone
     attributes:
       label: Source Zone / Network
-      description: Origin zone or network CIDR of the traffic (e.g. zone name or IP range).
-      placeholder: e.g. dmz / 10.0.1.0/24
+      description: >
+        Origin zone or network CIDR of the traffic. Required for
+        single-rule mode. For other modes, fill in if known or leave
+        empty.
+      placeholder: e.g. trust / 10.10.0.0/16
     validations:
-      required: true
-
+      required: false
   - type: input
     id: destination_zone
     attributes:
       label: Destination Zone / Network
-      description: Target zone or network CIDR for the traffic.
-      placeholder: e.g. internal / 10.0.2.0/24
+      description: >
+        Target zone or network CIDR for the traffic. Required for
+        single-rule mode. For other modes, fill in if known or leave
+        empty.
+      placeholder: e.g. dmz / 10.20.0.50
     validations:
-      required: true
-
+      required: false
   - type: input
     id: ports_services
     attributes:
       label: Required Ports / Services
-      description: Ports or application-layer services to be permitted.
-      placeholder: e.g. TCP/443 (HTTPS), TCP/8080
+      description: >
+        Ports or application-layer services to be permitted. Required
+        for single-rule mode. For other modes, fill in if known or
+        leave empty.
+      placeholder: e.g. TCP/443 (HTTPS), TCP/5432 (PostgreSQL)
     validations:
-      required: true
-
+      required: false
+  - type: textarea
+    id: additional_rules
+    attributes:
+      label: Additional Rules
+      description: >
+        For 'Multiple rules' mode: describe each additional rule here.
+        Use any format — tables, bullet lists, or prose. Each rule
+        should include source, destination, ports, and purpose.
+        For other modes this field is optional.
+      placeholder: |
+        Rule 2: Allow PostgreSQL from app-zone (10.20.0.50) to db-zone (10.10.5.10) on TCP/5432
+        Rule 3: Allow SSH from mgmt (10.10.1.0/24) to dmz (10.20.0.50) on TCP/22
+    validations:
+      required: false
   - type: textarea
     id: business_justification
     attributes:
       label: Business Justification
-      description: Explain why this firewall change is required and what business need it addresses.
-      placeholder: Describe the business need, compliance requirement, or operational reason for this change.
+      description: >
+        Explain why this firewall change is required and what business
+        need it addresses.
+      placeholder: >
+        Describe the business need, compliance requirement, or
+        operational reason for this change.
     validations:
       required: true
-
   - type: textarea
     id: supporting_documentation
     attributes:
       label: Supporting Documentation
       description: >
-        Attach supporting PDF files (architecture diagrams, compliance
-        certificates, application security assessments) by dragging and
-        dropping them into this field or clicking the attachment icon.
-        Each file must not exceed 32 MB.
-        GitHub will render uploaded files as links in the format
-        [filename.pdf](URL) — leave those links in place after uploading.
+        Attach supporting PDF files (architecture diagrams, operations
+        manuals, compliance certificates) by dragging and dropping
+        them into this field. Especially important for 'Document-based'
+        mode — FirePilot will extract firewall requirements from the
+        attached documents. Each file must not exceed 32 MB.
       placeholder: Drag and drop PDF files here, or paste attachment links.
     validations:
       required: false

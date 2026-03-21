@@ -3,7 +3,7 @@
 
 Usage:
     python ci/scripts/build-opa-input.py <directory> [--folder FOLDER] [--position POSITION]
-                                                      [--zones ZONES_FILE]
+                                                      [--config CONFIG_FILE]
 
     <directory> must contain:
         _rulebase.yaml   — the rulebase manifest
@@ -11,7 +11,7 @@ Usage:
 
     --folder FOLDER      Override the derived folder name (default: parent directory name)
     --position POSITION  Override the derived position name (default: directory name)
-    --zones ZONES_FILE   Path to firepilot.yaml; if provided, adds zone_mapping to OPA input
+    --config CONFIG_FILE Path to firepilot.yaml; if provided, adds zone_mapping to OPA input
 
 Output:
     JSON printed to stdout suitable for piping to `opa eval -i /dev/stdin`.
@@ -19,7 +19,7 @@ Output:
 Examples:
     # Valid fixture — folder/position derived from path (shared/pre), with zone mapping
     python ci/scripts/build-opa-input.py firewall-configs/shared/pre/ \\
-        --zones firepilot.yaml \\
+        --config firepilot.yaml \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
@@ -35,10 +35,10 @@ Examples:
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
-    # Topology violation fixture — supply zone mapping to activate topology policies
+    # Topology violation fixture — supply config to activate topology policies
     python ci/scripts/build-opa-input.py ci/fixtures/invalid/internet-to-database/ \\
         --folder shared --position pre \\
-        --zones ci/fixtures/invalid/internet-to-database/firepilot.yaml \\
+        --config ci/fixtures/invalid/internet-to-database/firepilot.yaml \\
         | opa eval -i /dev/stdin -d ci/policies/firepilot.rego \\
             'data.firepilot.validate.deny'
 
@@ -54,7 +54,7 @@ Input schema produced (matches firepilot.rego expectation):
         "folder":   "<parent-dir-name>",
         "position": "<dir-name>"       # must be "pre" or "post" for valid configs
       },
-      "zone_mapping": { ... }          # present only when --zones is supplied (ADR-0008)
+      "zone_mapping": { ... }          # present only when --config is supplied (ADR-0008)
     }
 """
 
@@ -133,7 +133,7 @@ def build_opa_input(
     directory: Path,
     folder_override: str | None = None,
     position_override: str | None = None,
-    zones_path: Path | None = None,
+    config_path: Path | None = None,
 ) -> dict:
     """Assemble the OPA input object from a folder/position directory.
 
@@ -150,7 +150,7 @@ def build_opa_input(
             folder hierarchy.
         position_override: If provided, use this as directory.position instead
             of deriving it from the directory name.
-        zones_path: If provided, load firepilot.yaml from this path and include
+        config_path: If provided, load firepilot.yaml from this path and include
             its 'zones' map as zone_mapping in the OPA input. If None, no
             zone_mapping key is included (backward compatible with configs
             validated before ADR-0008 was introduced).
@@ -207,10 +207,10 @@ def build_opa_input(
         },
     }
 
-    # Include zone_mapping only when --zones is supplied. Absence of zone_mapping
+    # Include zone_mapping only when --config is supplied. Absence of zone_mapping
     # keeps topology policies dormant, preserving backward compatibility (ADR-0008).
-    if zones_path is not None:
-        opa_input["zone_mapping"] = load_zone_mapping(zones_path)
+    if config_path is not None:
+        opa_input["zone_mapping"] = load_zone_mapping(config_path)
 
     return opa_input
 
@@ -245,9 +245,9 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--zones",
+        "--config",
         default=None,
-        metavar="ZONES_FILE",
+        metavar="CONFIG_FILE",
         help=(
             "Path to firepilot.yaml. When provided, the 'zones' map is included as "
             "'zone_mapping' in the OPA input, activating topology-aware policies "
@@ -258,13 +258,13 @@ def main() -> None:
 
     args = parser.parse_args()
     directory = Path(args.directory)
-    zones_path = Path(args.zones) if args.zones is not None else None
+    config_path = Path(args.config) if args.config is not None else None
 
     opa_input = build_opa_input(
         directory,
         folder_override=args.folder,
         position_override=args.position,
-        zones_path=zones_path,
+        config_path=config_path,
     )
     print(json.dumps(opa_input, indent=2))
 
