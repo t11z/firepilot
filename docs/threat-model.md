@@ -66,7 +66,7 @@ attached PDF contains adversarial instructions designed to override
 Claude's system prompt. The goal is to make Claude generate a
 permissive firewall rule that the attacker's request does not
 justify — or to make Claude skip validation steps (zone check,
-conflict detection, user confirmation).
+conflict detection, policy compliance checks).
 
 **Consequence**: A rule is proposed that violates security policy.
 If the human approver does not catch it, the rule enters the CI/CD
@@ -76,7 +76,8 @@ pipeline.
 
 | Control | Layer | How it helps |
 |---------|-------|-------------|
-| Claude's system prompt mandates a fixed, ordered workflow (Steps 1–11) | 2 | Claude cannot skip steps without violating explicit instructions; skipping is observable in the issue comment output |
+| Claude's system prompt mandates a fixed, ordered workflow (Steps 1–7a) with autonomous decision-making within defined policy boundaries (ADR-0014) | 2 | Claude cannot skip steps without violating explicit instructions; autonomous decisions are documented in the analysis comment for audit trail purposes |
+| write_config_file validation | 4 | The MCP tool validates YAML structure, schema version, and name/filename consistency before writing — malformed output from Claude is caught at write time, not post-hoc (ADR-0015) |
 | OPA policies enforce topology constraints independently | 3 | Even if Claude proposes an internet-to-database rule, Gate 2 blocks it — OPA does not trust Claude (ADR-0003, ADR-0008) |
 | JSON Schema validates structural correctness | 3 | Malformed YAML generated under injection is caught at Gate 1 |
 | `ticket_id` enforcement is server-side in MCP | 4 | Claude cannot push a configuration without a valid change request, regardless of prompt manipulation (ADR-0004) |
@@ -89,6 +90,13 @@ reasonable in the issue comment — but serves an adversarial purpose
 residual risk is inherent to any system where an LLM translates
 user intent into configuration. The human approval gate is the
 primary control for this class of attack.
+
+With ADR-0014, Claude no longer asks for user confirmation before
+generating configuration. This removes a theoretical checkpoint but
+does not weaken effective security — in the asynchronous GitHub
+Issue workflow, the confirmation was never received (no human in
+the loop during processing). The PR review gate remains the
+effective control.
 
 **Recommended hardening** (not yet implemented):
 
@@ -217,7 +225,8 @@ does not match the approved change request.
 | Control | Layer | How it helps |
 |---------|-------|-------------|
 | `ticket_id` enforcement on all write and push operations (ADR-0004) | 4 | MCP server rejects calls before any SCM interaction if `ticket_id` is missing or empty — this is structural, not prompt-dependent |
-| Tool surface is a finite, explicitly defined allowlist (ADR-0002) | 4 | Claude cannot call operations that are not exposed as tools; no `delete_rule`, no `modify_rule`, no zone or address creation in v1 |
+| Tool surface is a finite, explicitly defined allowlist (ADR-0002). Write tools include `create_security_rule`, `create_address`, `create_address_group`, `push_candidate_config`, and `write_config_file`. | 4 | Claude cannot call operations that are not exposed as tools |
+| `write_config_file` is restricted to OUTPUT_DIR with path traversal validation | 4 | Filename cannot contain path separators or `..`; writes are confined to the ephemeral workflow directory (ADR-0015) |
 | Candidate/push separation (ADR-0004) | 4 | Writing a rule to candidate config does not make it live; `push_candidate_config` is a separate, explicit action |
 | Server-side tool call logging with `structlog` | 4 | Every tool invocation is logged with tool name, sanitized parameters, outcome, and duration — auditable independently of Claude's output |
 | SCM API validates payloads independently (Layer 4 backend) | 4 | Malformed or invalid field values are rejected by the SCM API itself |
