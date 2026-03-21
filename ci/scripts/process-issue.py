@@ -29,6 +29,7 @@ import asyncio
 import base64
 import os
 import sys
+import time
 from contextlib import AsyncExitStack
 from pathlib import Path
 
@@ -48,6 +49,9 @@ CLAUDE_MODEL = "claude-sonnet-4-20250514"
 CLAUDE_MAX_TOKENS = 4096
 MAX_AGENTIC_ITERATIONS = 20
 MAX_PDF_BYTES = 32 * 1024 * 1024  # 32 MB — Claude API document size limit
+
+# Retry configuration for transient API errors (rate limits, 5xx)
+RATE_LIMIT_RETRY_DELAYS = (60, 120, 240)  # seconds — 1 min, 2 min, 4 min
 
 SYSTEM_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompts" / "system-prompt.md"
 
@@ -160,42 +164,63 @@ async def run_agentic_loop(
         if tool_defs:
             kwargs["tools"] = tool_defs
 
-        try:
-            response = client.messages.create(**kwargs)
-        except anthropic.AuthenticationError as exc:
-            print(
-                f"ERROR: Anthropic API authentication failed — check ANTHROPIC_API_KEY. "
-                f"Details: {exc}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        except anthropic.BadRequestError as exc:
-            print(
-                f"ERROR: Anthropic API rejected the request (400). "
-                f"Details: {exc}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        except anthropic.RateLimitError as exc:
-            print(
-                f"ERROR: Anthropic API rate limit exceeded. "
-                f"Details: {exc}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        except anthropic.APIStatusError as exc:
-            print(
-                f"ERROR: Anthropic API returned status {exc.status_code}. "
-                f"Details: {exc}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        except anthropic.APIConnectionError as exc:
-            print(
-                f"ERROR: Failed to connect to Anthropic API. "
-                f"Details: {exc}",
-                file=sys.stderr,
-            )
+        response = None
+        for attempt, delay in enumerate([0, *RATE_LIMIT_RETRY_DELAYS]):
+            if delay:
+                print(
+                    f"  Rate limit hit — waiting {delay}s before retry "
+                    f"(attempt {attempt + 1}/{len(RATE_LIMIT_RETRY_DELAYS) + 1}).",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+            try:
+                response = client.messages.create(**kwargs)
+                break  # success — exit retry loop
+            except anthropic.AuthenticationError as exc:
+                print(
+                    f"ERROR: Anthropic API authentication failed — check ANTHROPIC_API_KEY. "
+                    f"Details: {exc}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            except anthropic.BadRequestError as exc:
+                print(
+                    f"ERROR: Anthropic API rejected the request (400). "
+                    f"Details: {exc}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            except anthropic.RateLimitError as exc:
+                if attempt < len(RATE_LIMIT_RETRY_DELAYS):
+                    print(
+                        f"WARNING: Anthropic API rate limit exceeded. "
+                        f"Details: {exc}",
+                        file=sys.stderr,
+                    )
+                    continue
+                print(
+                    f"ERROR: Anthropic API rate limit exceeded after all retries. "
+                    f"Details: {exc}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            except anthropic.APIStatusError as exc:
+                print(
+                    f"ERROR: Anthropic API returned status {exc.status_code}. "
+                    f"Details: {exc}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            except anthropic.APIConnectionError as exc:
+                print(
+                    f"ERROR: Failed to connect to Anthropic API. "
+                    f"Details: {exc}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        if response is None:
+            print("ERROR: No response received from Anthropic API.", file=sys.stderr)
             sys.exit(1)
 
         print(
