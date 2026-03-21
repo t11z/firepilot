@@ -353,12 +353,14 @@ def invoke_orchestrator(
     except OSError as exc:
         return None, f"Failed to launch orchestrator: {exc}"
 
-    if result.returncode != 0:
-        # Log stderr for debugging; do not expose it in the issue comment
+    # Always surface orchestrator logs (iteration traces, cache stats,
+    # tool call durations) in the GitHub Actions log — not just on failure.
+    if result.stderr:
         print(
-            f"Orchestrator exited with code {result.returncode}. stderr:\n{result.stderr}",
+            f"Orchestrator stderr (exit code {result.returncode}):\n{result.stderr}",
             file=sys.stderr,
         )
+    if result.returncode != 0:
         return None, f"Analysis script exited with code {result.returncode}."
 
     text = result.stdout.strip()
