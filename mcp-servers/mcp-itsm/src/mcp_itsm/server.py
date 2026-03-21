@@ -8,11 +8,13 @@ import structlog
 from mcp.server.fastmcp import FastMCP
 
 from mcp_itsm.tools.change_requests import register_change_request_tools
+from mcp_itsm.tools.config_files import register_config_file_tools
 
 # Single FastMCP server instance — all tools are registered on this object
 mcp: FastMCP = FastMCP("mcp-itsm")
 
 register_change_request_tools(mcp)
+register_config_file_tools(mcp)
 
 
 def main() -> None:

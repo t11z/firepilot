@@ -4,9 +4,10 @@ Reads a GitHub Issue body, downloads any PDF attachments, invokes the
 client-side MCP agentic orchestrator (`ci/scripts/process-issue.py`) as a
 subprocess, and posts its output as an issue comment.
 
-If Claude's response contains a valid YAML security rule block (per ADR-0007),
-the rule is extracted to a file and metadata is written to GitHub Actions
-outputs so downstream workflow steps can commit the file and open a PR.
+Claude writes YAML configuration files directly via the write_config_file MCP
+tool during its agentic loop (ADR-0015). This script detects those files by
+scanning OUTPUT_DIR for .yaml files — presence indicates a valid proposal,
+absence indicates rejection. No regex or Markdown parsing is used.
 
 The orchestrator connects to mcp-strata-cloud-manager and mcp-itsm as local
 stdio subprocesses and runs the full Claude agentic tool-use loop in-process.
@@ -17,7 +18,7 @@ Required environment variables:
     ISSUE_NUMBER       — GitHub issue number (integer as string)
     ISSUE_BODY         — Full body text of the GitHub issue
     REPO               — Repository in "owner/repo" format
-    OUTPUT_DIR         — Directory path where extracted YAML files are written
+    OUTPUT_DIR         — Directory path where Claude writes YAML files via write_config_file
 """
 
 from __future__ import annotations
@@ -54,19 +55,12 @@ GITHUB_API_BASE = "https://api.github.com"
 # Path to the client-side orchestrator, relative to the repository root
 PROCESS_ISSUE_SCRIPT = Path("ci/scripts/process-issue.py")
 
-# Default placement used when the YAML comment does not include folder/position.
+# Default placement used when no _rulebase.yaml provides folder/position.
 # Matches the existing fixture structure in firewall-configs/shared/pre/.
 # Per ADR-0007, folder and position are derived from directory structure at
 # deploy time — they are NOT stored inside committed rule files.
 DEFAULT_FOLDER = "shared"
 DEFAULT_POSITION = "pre"
-
-# Regex to extract fenced YAML code blocks from Markdown.
-# Matches ```yaml … ``` (case-insensitive language tag, dotall body).
-YAML_BLOCK_RE = re.compile(
-    r"```yaml[ \t]*\r?\n(.*?)\r?\n```",
-    re.DOTALL | re.IGNORECASE,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -169,144 +163,110 @@ def is_pdf_within_size_limit(file_path: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# YAML extraction from orchestrator response
+# Output directory scanning (ADR-0015)
 # ---------------------------------------------------------------------------
 
-def extract_yaml_blocks(text: str) -> list[str]:
-    """Extract all fenced YAML code block contents from a Markdown string.
+def scan_output_directory(output_dir: Path) -> list[Path]:
+    """Return all .yaml files in the output directory, sorted by name.
+
+    Files are written by Claude via the write_config_file MCP tool during the
+    agentic loop. Their presence indicates a valid proposal; their absence
+    indicates rejection.
 
     Args:
-        text: Raw Markdown text (e.g. Claude's response).
+        output_dir: Path to the directory written by the write_config_file tool.
 
     Returns:
-        List of raw YAML strings, one per fenced block found.  May be empty.
+        Sorted list of .yaml file paths. Empty list if none exist.
     """
-    return YAML_BLOCK_RE.findall(text)
+    return sorted(output_dir.glob("*.yaml"))
 
 
-def is_security_rule(data: Any) -> bool:  # noqa: ANN401 — YAML can be Any type
-    """Return True if a parsed YAML value looks like a FirePilot security rule.
+def extract_metadata_from_files(
+    config_files: list[Path],
+) -> dict[str, Any]:
+    """Parse metadata from generated config files for workflow outputs.
 
-    Discriminator: per ADR-0007, every security rule file has a ``schema_version``
-    key.  Additional heuristics (``name`` and ``action``) reduce false positives.
+    Reads the _rulebase.yaml manifest (if present) for folder and position.
+    Reads the first security rule file found to extract rule_name, from_zones,
+    to_zones, action, and services. If multiple rule files exist, aggregates
+    zone and service information.
+
+    Returns a dict with keys matching the existing GitHub Actions output
+    contract: rule_name, folder, position, from_zones, to_zones, action,
+    services.
 
     Args:
-        data: Value returned by ``yaml.safe_load()``.
+        config_files: Non-empty list of .yaml paths from scan_output_directory.
 
     Returns:
-        True if ``data`` is a dict containing ``schema_version``, ``name``,
-        and ``action``.
+        Dict of metadata values. Falls back to defaults for missing fields.
     """
-    return (
-        isinstance(data, dict)
-        and "schema_version" in data
-        and "name" in data
-        and "action" in data
+    folder = DEFAULT_FOLDER
+    position = DEFAULT_POSITION
+    rule_name = ""
+    from_zones: list[str] = []
+    to_zones: list[str] = []
+    action = ""
+    services: list[str] = []
+
+    manifest_file = next(
+        (p for p in config_files if p.name == "_rulebase.yaml"),
+        None,
     )
-
-
-def extract_rule_from_response(response_text: str) -> dict[str, Any] | None:
-    """Scan an orchestrator response for a valid FirePilot security rule YAML block.
-
-    Iterates all fenced YAML blocks in the response.  Returns the first valid
-    security rule dict found, or None if no valid rule block is present.
-
-    Args:
-        response_text: Full text output from the orchestrator.
-
-    Returns:
-        Parsed rule dict if a valid block was found, otherwise None.
-    """
-    for raw in extract_yaml_blocks(response_text):
+    if manifest_file is not None:
         try:
-            data = yaml.safe_load(raw)
-        except yaml.YAMLError as exc:
-            print(f"WARNING: Skipping unparseable YAML block: {exc}", file=sys.stderr)
+            manifest_data = yaml.safe_load(manifest_file.read_text(encoding="utf-8"))
+            if isinstance(manifest_data, dict):
+                folder = str(manifest_data.get("folder", DEFAULT_FOLDER)) or DEFAULT_FOLDER
+                position = str(manifest_data.get("position", DEFAULT_POSITION)) or DEFAULT_POSITION
+                rule_order = manifest_data.get("rule_order", [])
+                if isinstance(rule_order, list) and rule_order:
+                    rule_name = str(rule_order[0])
+        except (yaml.YAMLError, OSError) as exc:
+            print(f"WARNING: Could not parse _rulebase.yaml: {exc}", file=sys.stderr)
+
+    # Parse rule files to extract zone/action/service metadata.
+    rule_files = [p for p in config_files if p.name != "_rulebase.yaml"]
+    for rule_file in rule_files:
+        try:
+            rule_data = yaml.safe_load(rule_file.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError) as exc:
+            print(f"WARNING: Could not parse '{rule_file.name}': {exc}", file=sys.stderr)
             continue
 
-        if is_security_rule(data):
-            return data
+        if not isinstance(rule_data, dict):
+            continue
 
-    return None
+        # Use the first rule file's name as rule_name if manifest didn't set one.
+        if not rule_name:
+            rule_name = str(rule_data.get("name", rule_file.stem))
 
+        # Aggregate zone and service lists across all rule files.
+        raw_from = rule_data.get("from", [])
+        if isinstance(raw_from, list):
+            from_zones.extend(str(z) for z in raw_from if str(z) not in from_zones)
 
-def extract_placement(rule: dict[str, Any]) -> tuple[str, str]:
-    """Extract (folder, position) from a rule dict, falling back to defaults.
+        raw_to = rule_data.get("to", [])
+        if isinstance(raw_to, list):
+            to_zones.extend(str(z) for z in raw_to if str(z) not in to_zones)
 
-    ADR-0007 states that ``folder`` and ``position`` must NOT appear in
-    committed rule YAML files — they are derived from the directory path.
-    Claude's response may include them as placement hints.  They are stripped
-    before the file is written (see ``strip_placement_fields``).
+        if not action:
+            action = str(rule_data.get("action", ""))
 
-    Args:
-        rule: Parsed rule YAML dictionary (may contain placement hints).
+        raw_service = rule_data.get("service", [])
+        if isinstance(raw_service, list):
+            services.extend(str(s) for s in raw_service if str(s) not in services)
 
-    Returns:
-        Tuple of (folder, position).  Defaults: ("shared", "pre").
-    """
-    folder = str(rule.get("folder", DEFAULT_FOLDER)).strip() or DEFAULT_FOLDER
-    position = str(rule.get("position", DEFAULT_POSITION)).strip() or DEFAULT_POSITION
-    return folder, position
-
-
-def strip_placement_fields(rule: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of ``rule`` with ``folder`` and ``position`` removed.
-
-    Per ADR-0007 these fields are derived from directory structure and must
-    not appear in committed security rule YAML files.
-
-    Args:
-        rule: Parsed rule YAML dictionary (may contain placement hints).
-
-    Returns:
-        New dict with ``folder`` and ``position`` keys omitted.
-    """
-    return {k: v for k, v in rule.items() if k not in ("folder", "position")}
-
-
-def write_rule_file(rule: dict[str, Any], output_dir: Path) -> Path:
-    """Serialise a security rule dict to a YAML file in ``output_dir``.
-
-    The file is named ``{rule['name']}.yaml``.  The ``folder`` and
-    ``position`` keys are stripped before writing (ADR-0007).
-
-    Args:
-        rule: Parsed rule YAML dictionary.
-        output_dir: Directory to write the file into.
-
-    Returns:
-        Absolute path to the written file.
-
-    Raises:
-        KeyError: If ``name`` is missing from ``rule``.
-        OSError: If the file cannot be written.
-    """
-    rule_name: str = rule["name"]
-    clean_rule = strip_placement_fields(rule)
-    file_path = output_dir / f"{rule_name}.yaml"
-
-    with open(file_path, "w", encoding="utf-8") as fh:
-        # sort_keys=False preserves the field order from the original response,
-        # which improves readability of the generated PR diff.
-        yaml.dump(clean_rule, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
-
-    return file_path
-
-
-def format_list(values: Any) -> str:  # noqa: ANN401 — YAML list fields can be Any
-    """Format a YAML list field as a comma-separated string.
-
-    Args:
-        values: A list, string, or None from a parsed YAML field.
-
-    Returns:
-        Comma-separated string, or empty string for None/empty.
-    """
-    if isinstance(values, list):
-        return ", ".join(str(v) for v in values)
-    if values is None:
-        return ""
-    return str(values)
+    return {
+        "rule_name": rule_name,
+        "folder": folder,
+        "position": position,
+        "from_zones": ", ".join(from_zones),
+        "to_zones": ", ".join(to_zones),
+        "action": action,
+        "services": ", ".join(services),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -488,59 +448,40 @@ def main() -> None:
         print(f"ERROR: Failed to post issue comment: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # --- If Claude produced a rejection or error, signal no proposal ---
+    # --- If Claude produced an error, signal no proposal ---
     if not claude_response:
         write_github_output("proposal_valid", "false")
         return
 
-    # --- Attempt to extract a valid YAML rule from Claude's response ---
-    rule = extract_rule_from_response(claude_response)
+    # --- Check for configuration files written by Claude ---
+    config_files = scan_output_directory(output_dir)
 
-    if rule is None:
-        # Claude rejected the request or did not produce a YAML block.
-        # The analysis comment has already been posted above.
-        print("No valid YAML security rule block found in orchestrator response.")
+    if not config_files:
+        # Claude did not produce any configuration files.
+        # This means rejection (unprocessable request per ADR-0014).
+        print("No configuration files found in output directory.")
         write_github_output("proposal_valid", "false")
 
-        # Apply the rejected label so the issue is visibly closed out.
         try:
             add_label(repo, issue_number, "firepilot:rejected", github_token)
         except requests.RequestException as label_exc:
-            print(f"WARNING: Failed to add 'firepilot:rejected' label: {label_exc}", file=sys.stderr)
+            print(
+                f"WARNING: Failed to add 'firepilot:rejected' label: {label_exc}",
+                file=sys.stderr,
+            )
         return
 
-    rule_name: str = rule.get("name", "")
-    if not rule_name:
-        print(
-            "WARNING: Extracted YAML block is missing required field 'name'. "
-            "Treating as rejection.",
-            file=sys.stderr,
-        )
-        write_github_output("proposal_valid", "false")
-        return
+    # Files exist — extract metadata for downstream workflow steps.
+    metadata = extract_metadata_from_files(config_files)
 
-    folder, position = extract_placement(rule)
-    print(f"Extracted rule: name='{rule_name}', folder='{folder}', position='{position}'")
-
-    try:
-        yaml_file = write_rule_file(rule, output_dir)
-    except (KeyError, OSError) as exc:
-        print(f"ERROR: Failed to write rule YAML file: {exc}", file=sys.stderr)
-        write_github_output("proposal_valid", "false")
-        sys.exit(1)
-
-    print(f"Rule file written to: {yaml_file}")
-
-    # Write all metadata to GitHub Actions outputs for downstream steps.
     write_github_output("proposal_valid", "true")
-    write_github_output("rule_name", rule_name)
-    write_github_output("folder", folder)
-    write_github_output("position", position)
-    write_github_output("yaml_file_path", str(yaml_file))
-    write_github_output("from_zones", format_list(rule.get("from", [])))
-    write_github_output("to_zones", format_list(rule.get("to", [])))
-    write_github_output("action", str(rule.get("action", "")))
-    write_github_output("services", format_list(rule.get("service", [])))
+    write_github_output("rule_name", metadata["rule_name"])
+    write_github_output("folder", metadata["folder"])
+    write_github_output("position", metadata["position"])
+    write_github_output("from_zones", metadata.get("from_zones", ""))
+    write_github_output("to_zones", metadata.get("to_zones", ""))
+    write_github_output("action", metadata.get("action", ""))
+    write_github_output("services", metadata.get("services", ""))
 
 
 if __name__ == "__main__":

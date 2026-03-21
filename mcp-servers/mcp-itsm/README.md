@@ -47,6 +47,7 @@ The server starts with one pre-seeded change request (`change_request_id: "42"`,
 | `get_change_request` | Retrieve current state; used by Claude to poll for approval | `GET /repos/{owner}/{repo}/issues/{issue_number}` |
 | `add_audit_comment` | Append a structured lifecycle event comment | `POST /repos/{owner}/{repo}/issues/{issue_number}/comments` |
 | `update_change_request_status` | Set terminal status (`deployed` or `failed`) and close the issue | `POST …/labels` + `PATCH …/issues/{issue_number}` |
+| `write_config_file` | Write a YAML configuration file to OUTPUT_DIR for Git commit | Local filesystem (no GitHub API call) |
 
 ### `create_change_request`
 
@@ -105,6 +106,54 @@ Status is derived from the `firepilot:*` label on the issue. If no `firepilot:*`
 Only `"deployed"` and `"failed"` are accepted. FirePilot never programmatically sets `"approved"` or `"rejected"` — those transitions belong to human reviewers via the GitHub UI.
 
 **Output**: `change_request_id`, `status`, `url`, `closed`
+
+---
+
+### `write_config_file`
+
+**Purpose**: Write a YAML configuration file (security rule, address object, or rulebase manifest) to the output directory for Git commit by the workflow. Claude calls this tool once per configuration artefact during its agentic loop. The workflow script then scans `OUTPUT_DIR` for `.yaml` files to determine whether a valid proposal was produced (ADR-0015).
+
+Both demo and live modes write to the local filesystem at `OUTPUT_DIR`. There is no fixture-based mock — the tool always performs real file I/O. The `OUTPUT_DIR` environment variable must be set before the server starts.
+
+**Input**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filename` | `str` | ✓ | File name including `.yaml` extension. For `security_rule`, must match the `name` field in the content. For `rulebase_manifest`, use `_rulebase.yaml`. |
+| `content` | `str` | ✓ | Complete YAML content of the file, ADR-0007-compliant. Written verbatim — not re-serialised. |
+| `file_type` | `str` | ✓ | One of: `security_rule`, `address_object`, `rulebase_manifest`. |
+
+**Validation** (performed before writing, in this order):
+
+| # | Rule |
+|---|------|
+| 1 | `filename` must end with `.yaml` |
+| 2 | `filename` must not contain path separators (`/`, `\`) or `..` |
+| 3 | `content` must be valid YAML (`yaml.safe_load()` succeeds) |
+| 4 | For `security_rule`: content must contain `schema_version`, `name`, and `action` |
+| 5 | For `rulebase_manifest`: content must contain `schema_version`, `folder`, `position`, and `rule_order` |
+| 6 | For `security_rule` and non-`_rulebase.yaml` manifests: the `name` field must match the filename stem |
+
+**Error codes**
+
+| Code | Condition |
+|------|-----------|
+| `INVALID_FILENAME` | Rule 1 or 2 violated |
+| `INVALID_YAML` | Rule 3 violated — content is not valid YAML |
+| `SCHEMA_MISMATCH` | Rule 4 or 5 violated — required fields missing for the given `file_type` |
+| `NAME_FILENAME_MISMATCH` | Rule 6 violated — `name` field does not match filename stem |
+| `WRITE_FAILED` | OS-level write error (permissions, disk full, etc.) |
+| `OUTPUT_DIR_NOT_SET` | `OUTPUT_DIR` environment variable is not configured |
+
+**Output** (on success)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file_path` | `str` | Absolute path of the written file |
+| `file_type` | `str` | Echo of the input `file_type` |
+| `file_size` | `int` | File size in bytes |
+
+**Demo and live mode**: Both modes write to `OUTPUT_DIR`. In the GitHub Actions workflow, `OUTPUT_DIR` is set to `${{ runner.temp }}/firepilot-extracted` (a temporary directory on the runner). In demo mode for local testing, set `OUTPUT_DIR` to any writable directory.
 
 ---
 

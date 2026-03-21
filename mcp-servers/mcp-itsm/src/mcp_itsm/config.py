@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     itsm_github_repo: str = ""
     itsm_approval_timeout_seconds: int = 3600
     itsm_poll_interval_seconds: int = 60
+    # Path where write_config_file writes YAML artefacts (ADR-0015).
+    # Set by the workflow via OUTPUT_DIR environment variable.
+    # Defaults to empty string; the tool returns OUTPUT_DIR_NOT_SET if unset.
+    output_dir: str = ""
 
     @model_validator(mode="after")
     def validate_live_credentials(self) -> "Settings":
