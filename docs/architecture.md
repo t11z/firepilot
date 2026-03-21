@@ -94,7 +94,7 @@ C4Container
 | GitHub Actions | Event-driven orchestration: issue intake, CI/CD validation, deployment | ADR-0003, ADR-0009 |
 | Claude API | Natural language parsing, rule generation, multi-step orchestration via MCP tools | ADR-0002 |
 | mcp-strata-cloud-manager | 7 tools mapped 1:1 to SCM API endpoints; enforces `ticket_id` on writes | ADR-0004 |
-| mcp-itsm | 4 tools for change request lifecycle; v1 backend is GitHub Issues | ADR-0005 |
+| mcp-itsm | 5 tools: 4 for change request lifecycle + `write_config_file` for configuration output; v1 backend is GitHub Issues | ADR-0005 |
 | Git Repository | Single source of truth for firewall configuration, zone mapping, OPA policies | ADR-0001 |
 
 ### Operating modes
@@ -127,11 +127,12 @@ flowchart TD
         F --> G[Claude calls mcp-strata tools:<br>list_security_zones<br>list_addresses<br>list_address_groups<br>list_security_rules]
         G --> H{Conflict or<br>policy violation?}
         H -- Yes --> I[Claude posts rejection<br>comment on Issue]
-        H -- No --> J[Claude generates YAML config<br>and posts proposal comment]
+        H -- No --> J1[Claude writes config files<br>via write_config_file tool]
+        J1 --> J2[Claude posts analysis comment<br>on issue — audit trail only]
     end
 
     subgraph Commit ["3 — Commit & PR"]
-        J --> O[YAML committed to feature branch]
+        J2 --> O[YAML committed to feature branch]
         O --> P[PR opened against main]
     end
 
@@ -172,7 +173,7 @@ flowchart LR
 | Layer | Enforcement point | Independence guarantee | ADR |
 |---|---|---|---|
 | 1 — Issue Template | GitHub Issue form | Structural guidance only; not a validation gate | ADR-0009 |
-| 2 — Claude Prompt | Claude's system prompt and orchestration logic | Zone topology from `firepilot.yaml`; does not bypass OPA | ADR-0008 |
+| 2 — Claude Prompt | Claude's system prompt and orchestration logic | Claude operates autonomously within policy boundaries (ADR-0014). It validates, decides, and generates configuration without interactive confirmation. Ambiguous rules are skipped with documented reasoning; only fully unprocessable requests are rejected. Zone topology from `firepilot.yaml`; does not bypass OPA | ADR-0008, ADR-0014 |
 | 3 — CI/CD | GitHub Actions: `check-jsonschema` + OPA + dry-run | Validates config files on their own merits; does not trust Claude | ADR-0003 |
 | 4 — MCP / API | MCP server-side checks + SCM API validation | `ticket_id` enforced structurally; SCM rejects invalid payloads | ADR-0004, ADR-0006 |
 

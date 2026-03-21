@@ -105,7 +105,7 @@ change request — extracted from the merge commit branch name in `deploy.yml`).
 On success, the deploy workflow tags the commit:
 `deploy-{YYYYMMDDTHHMMSSZ}-{short-sha}`
 
-In `demo` mode: mock pass with simulated deployment log — no credentials required.
+In `demo` mode: runs gate4-deploy.py with MCP mock fixtures — creates rules in demo store, simulates push, and records ITSM events. No credentials required.
 
 Required environment variables (live mode):
 - `TICKET_ID` — ITSM ticket reference (GitHub issue number)
@@ -314,10 +314,14 @@ label on creation, which triggers `.github/workflows/process-firewall-request.ym
 Navigate to **Actions → Process Firewall Change Request**.  The workflow runs
 Claude's full agentic analysis loop against both MCP servers in demo mode.
 
-If Claude produces a valid YAML proposal, the workflow continues through steps
-4–13: computing a feature branch name, checking for existing branches/PRs
-(idempotency guard), committing the rule file and manifest atomically, pushing
-the branch, opening a PR, and posting a comment linking to the PR.
+If Claude writes configuration files to the output directory via
+`write_config_file`, the workflow continues through subsequent steps: computing
+a feature branch name, checking for existing branches/PRs (idempotency guard),
+committing all generated rule files and the rulebase manifest atomically,
+pushing the branch, opening a PR, and posting a comment linking to the PR.
+For document-based requests, Claude extracts rules from attached PDFs
+autonomously. Multiple rule files and a rulebase manifest are committed in a
+single PR.
 
 If Claude rejects the request, only an issue comment is posted and
 `firepilot:rejected` is applied — no branch or PR is created.

@@ -166,9 +166,14 @@ Every significant design choice is documented as an Architecture Decision Record
 | [ADR-0005](docs/adr/0005-mcp-itsm-tool-interface-design.md) | ITSM MCP server tool interface |
 | [ADR-0006](docs/adr/0006-mcp-server-authentication-and-credential-management.md) | Authentication and credential management |
 | [ADR-0007](docs/adr/0007-declarative-firewall-configuration-yaml-schema.md) | Declarative YAML configuration schema |
-| [ADR-0008](docs/adr/0008-zone-topology-aware-policy-validation.md) | Zone topology-aware policy validation |
+| [ADR-0008](docs/adr/0008-zone-topology-mapping-and-role-based-policy-validation.md) | Zone topology-aware policy validation |
 | [ADR-0009](docs/adr/0009-github-issues-as-primary-firewall-change-request-interface.md) | GitHub Issues as change request interface |
+| [ADR-0010](docs/adr/0010-direct-commit-after-processing.md) | Direct commit to feature branch, PR-based review |
 | [ADR-0011](docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md) | Drift detection and push retry |
+| [ADR-0012](docs/adr/0012-centralised-operator-configuration.md) | Centralised operator configuration (firepilot.yaml) |
+| [ADR-0013](docs/adr/0013-prompt-caching-for-orchestrator-agentic-loop.md) | Prompt caching for orchestrator agentic loop |
+| [ADR-0014](docs/adr/0014-enforce-autonomous-processing-in-async-issue-workflow.md) | Autonomous processing in asynchronous issue workflow |
+| [ADR-0015](docs/adr/0015-claude-writes-configuration-files.md) | Claude writes configuration files via MCP tool |
 
 ---
 
