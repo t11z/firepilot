@@ -25,7 +25,6 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     html { scroll-behavior: smooth; }
 
     body {
@@ -40,8 +39,15 @@
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
+    /* icons */
+    .icon {
+      display: inline-block; flex-shrink: 0;
+      vertical-align: middle;
+    }
+    .icon svg { display: block; }
+
     /* ── Layout ── */
-    .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; }
 
     /* ── Top bar ── */
     .topbar {
@@ -52,34 +58,29 @@
       backdrop-filter: blur(8px);
       z-index: 100;
     }
-    .topbar-inner {
-      display: flex; align-items: center; justify-content: space-between;
-    }
+    .topbar-inner { display: flex; align-items: center; justify-content: space-between; }
     .logo {
       display: flex; align-items: center; gap: 10px;
       font-size: 21px; font-weight: 700; color: var(--text); letter-spacing: 0.04em;
     }
     .logo-icon {
-      width: 22px; height: 22px;
+      width: 26px; height: 26px;
       background: var(--accent);
       clip-path: polygon(50% 0%, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%);
       display: flex; align-items: center; justify-content: center;
-      font-size: 15px; color: #fff; font-weight: 700;
       flex-shrink: 0;
     }
-    .nav { display: flex; gap: 24px; }
-    .nav a { color: var(--muted); font-size: 18px; font-weight: 400; transition: color .15s; }
+    .nav { display: flex; gap: 24px; align-items: center; }
+    .nav a {
+      color: var(--muted); font-size: 18px; font-weight: 400;
+      transition: color .15s;
+      display: flex; align-items: center; gap: 6px;
+    }
     .nav a:hover { color: var(--text); text-decoration: none; }
 
     /* ── Hero ── */
-    .hero {
-      padding: 80px 0 60px;
-      border-bottom: 1px solid var(--border);
-    }
-    .prompt-line {
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 32px;
-    }
+    .hero { padding: 80px 0 60px; border-bottom: 1px solid var(--border); }
+    .prompt-line { display: flex; align-items: center; gap: 8px; margin-bottom: 32px; }
     .prompt-sign { color: var(--accent); font-weight: 700; user-select: none; }
     .prompt-text { color: var(--muted); font-size: 18px; }
     .cursor {
@@ -90,213 +91,165 @@
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
     h1 {
-      font-size: clamp(42px, 5vw, 66px);
-      font-weight: 700;
-      color: #fff;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-      margin-bottom: 20px;
+      font-size: clamp(42px, 5vw, 66px); font-weight: 700; color: #fff;
+      line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 20px;
     }
     h1 .accent { color: var(--accent); }
 
     .tagline {
-      font-size: 21px; color: var(--muted); max-width: 560px; line-height: 1.8;
-      margin-bottom: 36px;
+      font-size: 21px; color: var(--muted); max-width: 580px;
+      line-height: 1.8; margin-bottom: 36px;
     }
 
-    .badges {
-      display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px;
-    }
+    .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
     .badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
       border: 1px solid var(--border-hi);
       border-radius: 4px;
-      font-size: 16.5px;
-      color: var(--muted);
+      font-size: 16.5px; color: var(--muted);
       background: var(--bg-raised);
       letter-spacing: 0.03em;
     }
-    .badge .dot {
-      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-    }
-    .dot-green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .dot-blue   { background: var(--blue); }
-    .dot-yellow { background: var(--yellow); }
-    .dot-accent { background: var(--accent); }
+    .badge .b-icon { color: var(--green); display:flex; }
+    .badge .b-icon.blue  { color: var(--blue); }
+    .badge .b-icon.yellow{ color: var(--yellow); }
+    .badge .b-icon.accent{ color: var(--accent); }
 
     .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 9px 18px;
+      padding: 10px 20px;
       font-family: var(--font); font-size: 18px; font-weight: 500;
       border-radius: 4px; cursor: pointer; transition: all .15s;
       letter-spacing: 0.02em;
     }
-    .btn-primary {
-      background: var(--accent); color: #fff; border: 1px solid transparent;
-    }
+    .btn-primary { background: var(--accent); color: #fff; border: 1px solid transparent; }
     .btn-primary:hover { background: #d4541f; text-decoration: none; }
-    .btn-ghost {
-      background: transparent; color: var(--text);
-      border: 1px solid var(--border-hi);
-    }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border-hi); }
     .btn-ghost:hover { border-color: var(--muted); text-decoration: none; }
 
-    /* ── Section titles ── */
-    .section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+    /* ── Sections ── */
+    .section { padding: 64px 0; border-bottom: 1px solid var(--border); }
     .section:last-child { border-bottom: none; }
 
     .section-label {
-      font-size: 15px; font-weight: 500; letter-spacing: 0.14em;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 15px; font-weight: 500; letter-spacing: 0.12em;
       text-transform: uppercase; color: var(--accent);
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
-    h2 {
-      font-size: 33px; font-weight: 600; color: #fff;
-      margin-bottom: 28px; letter-spacing: -0.01em;
-    }
+    .section-label .icon { opacity: 0.8; }
 
-    /* ── Flow diagram (ASCII-ish) ── */
+    h2 { font-size: 33px; font-weight: 600; color: #fff; margin-bottom: 28px; letter-spacing: -0.01em; }
+
+    /* ── Flow ── */
     .flow-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 28px 24px;
-      overflow-x: auto;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 28px 24px; overflow-x: auto;
     }
-    .flow {
-      display: flex; align-items: center; flex-wrap: wrap;
-      gap: 0;
-    }
-    .flow-step {
-      display: flex; flex-direction: column;
-      align-items: center;
-      min-width: 100px;
-    }
+    .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+    .flow-step { display: flex; flex-direction: column; align-items: center; min-width: 110px; }
     .flow-node {
-      border: 1px solid var(--border-hi);
-      border-radius: 4px;
-      padding: 8px 14px;
-      font-size: 16.5px;
-      text-align: center;
-      line-height: 1.4;
-      background: var(--bg-raised);
-      color: var(--text);
-      white-space: nowrap;
+      border: 1px solid var(--border-hi); border-radius: 4px;
+      padding: 8px 14px; font-size: 16.5px; text-align: center;
+      line-height: 1.4; background: var(--bg-raised); color: var(--text); white-space: nowrap;
     }
-    .flow-node.hi { border-color: var(--accent); color: #fff; }
-    .flow-node.green { border-color: var(--green); color: var(--green); }
-    .flow-node.blue  { border-color: var(--blue);  color: var(--blue); }
-    .flow-arrow {
-      color: var(--muted); font-size: 24px; padding: 0 6px; line-height: 1;
-      align-self: center;
-    }
-    .flow-sub {
-      font-size: 15px; color: var(--muted); margin-top: 5px; text-align: center;
-    }
+    .flow-node.hi    { border-color: var(--accent); color: #fff; }
+    .flow-node.green { border-color: var(--green);  color: var(--green); }
+    .flow-node.blue  { border-color: var(--blue);   color: var(--blue); }
+    .flow-arrow { color: var(--muted); font-size: 24px; padding: 0 6px; line-height: 1; align-self: center; }
+    .flow-sub { font-size: 15px; color: var(--muted); margin-top: 5px; text-align: center; }
 
-    /* ── Pipeline gates ── */
+    /* ── Gates ── */
     .gates { display: flex; flex-direction: column; gap: 10px; }
     .gate {
-      display: grid;
-      grid-template-columns: 80px 1fr;
-      align-items: center;
-      gap: 16px;
-      padding: 14px 18px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      position: relative;
-      overflow: hidden;
+      display: grid; grid-template-columns: 56px 1fr;
+      align-items: center; gap: 18px;
+      padding: 16px 20px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 5px; position: relative; overflow: hidden;
     }
     .gate::before {
-      content: '';
-      position: absolute; left: 0; top: 0; bottom: 0;
-      width: 3px;
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
     }
     .gate.g1::before { background: var(--blue); }
     .gate.g2::before { background: var(--yellow); }
     .gate.g3::before { background: var(--green); }
     .gate.g4::before { background: var(--accent); }
-
-    .gate-id { font-size: 15px; color: var(--muted); letter-spacing: 0.06em; }
+    .gate-icon { display: flex; justify-content: center; }
+    .gate.g1 .gate-icon { color: var(--blue); }
+    .gate.g2 .gate-icon { color: var(--yellow); }
+    .gate.g3 .gate-icon { color: var(--green); }
+    .gate.g4 .gate-icon { color: var(--accent); }
+    .gate-id   { font-size: 15px; color: var(--muted); letter-spacing: 0.06em; }
     .gate-name { font-size: 18px; color: #fff; font-weight: 500; }
     .gate-desc { font-size: 16.5px; color: var(--muted); margin-top: 2px; }
 
     /* ── ADR cards ── */
-    .adr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+    .adr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
     .adr-card {
-      padding: 18px 20px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      display: flex; flex-direction: column; gap: 10px;
+      padding: 20px 22px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 6px;
+      display: flex; flex-direction: column; gap: 12px;
       transition: border-color .15s;
     }
     .adr-card:hover { border-color: var(--border-hi); }
-    .adr-card-header { display: flex; gap: 6px; flex-wrap: wrap; }
+    .adr-card-header { display: flex; align-items: center; gap: 10px; }
+    .adr-card-header .icon { color: var(--accent); opacity: 0.7; }
+    .adr-tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .adr-tag {
-      font-size: 15px; font-weight: 500; letter-spacing: 0.06em;
-      padding: 2px 8px;
-      border-radius: 3px;
-      background: var(--accent-lo);
-      border: 1px solid var(--accent-mid);
+      font-size: 15px; font-weight: 500; letter-spacing: 0.05em;
+      padding: 2px 9px; border-radius: 3px;
+      background: var(--accent-lo); border: 1px solid var(--accent-mid);
       color: var(--accent);
     }
     .adr-card-title { font-size: 18px; color: #fff; font-weight: 500; line-height: 1.5; }
-    .adr-card-body { font-size: 16.5px; color: var(--muted); line-height: 1.75; flex: 1; }
+    .adr-card-body  { font-size: 16.5px; color: var(--muted); line-height: 1.75; flex: 1; }
     .adr-card-body code {
       font-family: var(--font); font-size: 15px;
       background: var(--bg-raised); border: 1px solid var(--border);
       padding: 1px 5px; border-radius: 3px; color: var(--green);
     }
-    .adr-card-footer { display: flex; gap: 14px; padding-top: 4px; border-top: 1px solid var(--border); }
-    .adr-card-footer a { font-size: 16.5px; color: var(--muted); }
+    .adr-card-footer {
+      display: flex; gap: 14px; padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .adr-card-footer a {
+      font-size: 16.5px; color: var(--muted);
+      display: flex; align-items: center; gap: 4px;
+    }
     .adr-card-footer a:hover { color: var(--accent); text-decoration: none; }
 
     /* ── Stack grid ── */
-    .stack-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 10px;
-    }
+    .stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
     .stack-item {
-      padding: 14px 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 5px;
+      padding: 16px 18px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 5px;
+      display: flex; align-items: flex-start; gap: 12px;
     }
-    .stack-role { font-size: 15px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 4px; }
+    .stack-item .icon { color: var(--muted); margin-top: 3px; flex-shrink: 0; }
+    .stack-text {}
+    .stack-role { font-size: 15px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 3px; }
     .stack-tech { font-size: 18px; color: var(--text); font-weight: 500; }
 
     /* ── Demo block ── */
-    .demo-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-    }
+    .demo-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     .demo-titlebar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 16px;
-      background: var(--bg-raised);
-      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; background: var(--bg-raised); border-bottom: 1px solid var(--border);
     }
     .dot-bar { display:flex; gap:6px; }
-    .dot-bar span {
-      width: 10px; height: 10px; border-radius: 50%;
-    }
+    .dot-bar span { width: 10px; height: 10px; border-radius: 50%; }
     .dot-bar .r { background: #ff5f56; }
     .dot-bar .y { background: #ffbd2e; }
     .dot-bar .g { background: #27c93f; }
-    .demo-file { font-size: 16.5px; color: var(--muted); margin-left: 4px; }
-
-    .demo-body { padding: 20px 20px; }
+    .demo-titlebar .icon { color: var(--muted); }
+    .demo-file { font-size: 16.5px; color: var(--muted); }
+    .demo-body { padding: 22px; }
     .demo-body pre {
       font-family: var(--font); font-size: 18px;
-      line-height: 1.7; color: var(--text); white-space: pre;
-      overflow-x: auto;
+      line-height: 1.7; color: var(--text); white-space: pre; overflow-x: auto;
     }
     .t-comment { color: var(--muted); }
     .t-prompt  { color: var(--accent); }
@@ -306,28 +259,28 @@
     .t-warn    { color: var(--yellow); }
 
     /* ── Footer ── */
-    .footer {
-      padding: 32px 0;
-      border-top: 1px solid var(--border);
-    }
+    .footer { padding: 36px 0; border-top: 1px solid var(--border); }
     .footer-inner {
       display: flex; justify-content: space-between; align-items: center;
-      flex-wrap: wrap; gap: 12px;
+      flex-wrap: wrap; gap: 16px;
     }
     .footer-note { font-size: 16.5px; color: var(--muted); }
-    .footer-links { display: flex; gap: 20px; }
-    .footer-links a { font-size: 16.5px; color: var(--muted); }
+    .footer-links { display: flex; gap: 20px; align-items: center; }
+    .footer-links a {
+      font-size: 16.5px; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+      transition: color .15s;
+    }
     .footer-links a:hover { color: var(--text); text-decoration: none; }
 
     /* ── Disclaimer ── */
     .disclaimer {
-      margin-top: 40px;
-      padding: 14px 18px;
-      background: rgba(227,179,65,0.06);
-      border: 1px solid rgba(227,179,65,0.2);
-      border-radius: 5px;
-      font-size: 16.5px; color: var(--muted); line-height: 1.7;
+      margin-top: 40px; padding: 14px 18px;
+      background: rgba(227,179,65,0.06); border: 1px solid rgba(227,179,65,0.2);
+      border-radius: 5px; font-size: 16.5px; color: var(--muted); line-height: 1.7;
+      display: flex; align-items: flex-start; gap: 10px;
     }
+    .disclaimer .icon { color: var(--yellow); flex-shrink: 0; margin-top: 4px; }
     .disclaimer strong { color: var(--yellow); }
 
     @media (max-width: 600px) {
@@ -335,24 +288,129 @@
       .flow { flex-direction: column; }
       .flow-arrow { transform: rotate(90deg); }
       .footer-inner { flex-direction: column; align-items: flex-start; }
+      .adr-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
+<!-- ────────────────────── SVG icon sprite ────────────────────── -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <!-- code-bracket -->
+  <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/>
+  </symbol>
+  <!-- arrow-right -->
+  <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
+  </symbol>
+  <!-- play-circle -->
+  <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+    <path d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z"/>
+  </symbol>
+  <!-- check-circle -->
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+  </symbol>
+  <!-- shield-check -->
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/>
+  </symbol>
+  <!-- cpu-chip -->
+  <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z"/>
+  </symbol>
+  <!-- git-branch (arrow-path) -->
+  <symbol id="i-git" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+  </symbol>
+  <!-- document-text -->
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
+  </symbol>
+  <!-- adjustments-horizontal -->
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
+  </symbol>
+  <!-- arrow-path (refresh/sync) -->
+  <symbol id="i-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+  </symbol>
+  <!-- bolt (lightning) -->
+  <symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/>
+  </symbol>
+  <!-- lock-closed -->
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+  </symbol>
+  <!-- server -->
+  <symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21.75 17.25v.75a2.25 2.25 0 0 1-2.25 2.25H4.5a2.25 2.25 0 0 1-2.25-2.25v-.75m19.5 0a2.25 2.25 0 0 0-2.25-2.25H4.5a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.75m-19.5-.75v.75M3.75 15V6.75A2.25 2.25 0 0 1 6 4.5h12a2.25 2.25 0 0 1 2.25 2.25V15"/>
+  </symbol>
+  <!-- cube (package) -->
+  <symbol id="i-cube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/>
+  </symbol>
+  <!-- command-line -->
+  <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z"/>
+  </symbol>
+  <!-- exclamation-triangle -->
+  <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+  </symbol>
+  <!-- academic-cap -->
+  <symbol id="i-adr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"/>
+  </symbol>
+  <!-- GitHub mark (simple path) -->
+  <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2Z"/>
+  </symbol>
+  <!-- LinkedIn mark -->
+  <symbol id="i-linkedin" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+  </symbol>
+  <!-- map (architecture) -->
+  <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 6.75V15m0-8.25c0 0 3 .75 6 0m-6 8.25c0 0 3 .75 6 0M9 6.75C9 6.75 6 6 3 7.5v11.25c3-1.5 6-.75 6-.75m6-11.25c0 0 3-.75 6 .75v11.25c-3-1.5-6-.75-6-.75m0-11.25V15"/>
+  </symbol>
+  <!-- bug (threat) -->
+  <symbol id="i-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0 1 12 12.75Zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 0 1-1.152 6.06M12 12.75c-2.883 0-5.647.508-8.208 1.44a23.913 23.913 0 0 0 1.152 6.061M12 12.75c-1.38 0-2.627-.177-3.75-.496m3.75.496c1.38 0 2.627-.177 3.75-.496m-3.75.496V8.25m-3.75 4.254c-.21-.168-.404-.35-.58-.545M8.25 12.004V8.25m0 3.754-.133.098A12.7 12.7 0 0 1 6.75 13.5m1.5-1.246c.21-.168.404-.35.58-.545M15.75 12.004V8.25m0 3.754.133.098A12.7 12.7 0 0 0 17.25 13.5m-1.5-1.246c-.21-.168-.404-.35-.58-.545M15.75 8.25c0-1.657-1.679-3-3.75-3S8.25 6.593 8.25 8.25m7.5 0h1.5a2.25 2.25 0 0 1 2.25 2.25v.75m-13.5-3h-1.5A2.25 2.25 0 0 0 2.25 9.75v.75"/>
+  </symbol>
+</svg>
+
 <!-- ── Top bar ── -->
 <header class="topbar">
   <div class="wrap topbar-inner">
     <div class="logo">
-      <div class="logo-icon">▲</div>
+      <div class="logo-icon"></div>
       firepilot
     </div>
     <nav class="nav">
-      <a href="#how-it-works">how it works</a>
-      <a href="#pipeline">pipeline</a>
-      <a href="#adrs">decisions</a>
-      <a href="#demo">demo</a>
-      <a href="https://github.com/t11z/firepilot" target="_blank">github ↗</a>
+      <a href="#how-it-works">
+        <span class="icon"><svg width="16" height="16"><use href="#i-arrow-right"/></svg></span>
+        how it works
+      </a>
+      <a href="#pipeline">
+        <span class="icon"><svg width="16" height="16"><use href="#i-shield"/></svg></span>
+        pipeline
+      </a>
+      <a href="#adrs">
+        <span class="icon"><svg width="16" height="16"><use href="#i-doc"/></svg></span>
+        decisions
+      </a>
+      <a href="#demo">
+        <span class="icon"><svg width="16" height="16"><use href="#i-terminal"/></svg></span>
+        demo
+      </a>
+      <a href="https://github.com/t11z/firepilot" target="_blank">
+        <span class="icon"><svg width="16" height="16"><use href="#i-github"/></svg></span>
+        github
+      </a>
     </nav>
   </div>
 </header>
@@ -376,26 +434,41 @@
     </p>
 
     <div class="badges">
-      <span class="badge"><span class="dot dot-green"></span>demo mode — no credentials needed</span>
-      <span class="badge"><span class="dot dot-blue"></span>Claude API + MCP Protocol</span>
-      <span class="badge"><span class="dot dot-yellow"></span>OPA / Rego policy validation</span>
-      <span class="badge"><span class="dot dot-accent"></span>Palo Alto SCM integration</span>
+      <span class="badge">
+        <span class="b-icon"><svg width="16" height="16"><use href="#i-check"/></svg></span>
+        demo mode — no credentials needed
+      </span>
+      <span class="badge">
+        <span class="b-icon blue"><svg width="16" height="16"><use href="#i-cpu"/></svg></span>
+        Claude API + MCP Protocol
+      </span>
+      <span class="badge">
+        <span class="b-icon yellow"><svg width="16" height="16"><use href="#i-shield"/></svg></span>
+        OPA / Rego policy validation
+      </span>
+      <span class="badge">
+        <span class="b-icon accent"><svg width="16" height="16"><use href="#i-server"/></svg></span>
+        Palo Alto SCM integration
+      </span>
     </div>
 
     <div class="cta-row">
       <a class="btn btn-primary" href="https://github.com/t11z/firepilot" target="_blank">
-        ⌥ view on github
+        <span class="icon"><svg width="18" height="18"><use href="#i-github"/></svg></span>
+        view on github
       </a>
       <a class="btn btn-ghost" href="#demo">
-        ▶ run demo
+        <span class="icon"><svg width="18" height="18"><use href="#i-play"/></svg></span>
+        run demo
       </a>
     </div>
 
     <div class="disclaimer">
-      <strong>⚠ demo project.</strong>
+      <span class="icon"><svg width="20" height="20"><use href="#i-warn"/></svg></span>
+      <span><strong>demo project.</strong>
       FirePilot is an architectural portfolio piece. It demonstrates AI-driven GitOps
       patterns — not a production security tool. Run entirely without live infrastructure
-      via <code>FIREPILOT_ENV=demo</code>.
+      via <code>FIREPILOT_ENV=demo</code>.</span>
     </div>
   </div>
 </section>
@@ -403,9 +476,11 @@
 <!-- ── How it works ── -->
 <section class="section" id="how-it-works">
   <div class="wrap">
-    <div class="section-label">// flow</div>
+    <div class="section-label">
+      <span class="icon"><svg width="16" height="16"><use href="#i-arrow-right"/></svg></span>
+      flow
+    </div>
     <h2>How a firewall rule gets deployed</h2>
-
     <div class="flow-box">
       <div class="flow">
         <div class="flow-step">
@@ -450,42 +525,40 @@
 <!-- ── Pipeline ── -->
 <section class="section" id="pipeline">
   <div class="wrap">
-    <div class="section-label">// ci/cd</div>
+    <div class="section-label">
+      <span class="icon"><svg width="16" height="16"><use href="#i-shield"/></svg></span>
+      ci/cd
+    </div>
     <h2>Four validation gates</h2>
-
     <div class="gates">
       <div class="gate g1">
+        <div class="gate-icon"><svg width="28" height="28"><use href="#i-doc"/></svg></div>
         <div>
           <div class="gate-id">GATE 1</div>
-        </div>
-        <div>
           <div class="gate-name">JSON Schema Validation</div>
           <div class="gate-desc">Structural correctness of generated YAML via check-jsonschema</div>
         </div>
       </div>
       <div class="gate g2">
+        <div class="gate-icon"><svg width="28" height="28"><use href="#i-shield"/></svg></div>
         <div>
           <div class="gate-id">GATE 2</div>
-        </div>
-        <div>
           <div class="gate-name">OPA Policy Evaluation</div>
           <div class="gate-desc">Security semantics: zone topology, internet→db rules, tag requirements</div>
         </div>
       </div>
       <div class="gate g3">
+        <div class="gate-icon"><svg width="28" height="28"><use href="#i-check"/></svg></div>
         <div>
           <div class="gate-id">GATE 3</div>
-        </div>
-        <div>
           <div class="gate-name">SCM Dry-Run</div>
           <div class="gate-desc">Validation against Strata Cloud Manager API (or mock in demo mode)</div>
         </div>
       </div>
       <div class="gate g4">
+        <div class="gate-icon"><svg width="28" height="28"><use href="#i-bolt"/></svg></div>
         <div>
           <div class="gate-id">GATE 4</div>
-        </div>
-        <div>
           <div class="gate-name">Deploy + ITSM Update</div>
           <div class="gate-desc">Rule pushed to SCM via mcp-strata; issue updated via mcp-itsm</div>
         </div>
@@ -497,9 +570,12 @@
 <!-- ── Architecture decisions ── -->
 <section class="section" id="adrs">
   <div class="wrap">
-    <div class="section-label">// decisions</div>
+    <div class="section-label">
+      <span class="icon"><svg width="16" height="16"><use href="#i-doc"/></svg></span>
+      decisions
+    </div>
     <h2>Key architectural decisions</h2>
-    <p style="color:var(--muted);font-size: 18px;margin-bottom:32px;max-width:600px;">
+    <p style="color:var(--muted);font-size:18px;margin-bottom:32px;max-width:640px;">
       Every non-trivial decision is documented as an ADR — including rejected alternatives and the conditions under which the decision should be revisited.
       13 ADRs in total. <a href="https://github.com/t11z/firepilot/tree/main/docs/adr" target="_blank">Browse all →</a>
     </p>
@@ -508,8 +584,8 @@
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="adr-tag">GitOps</span>
-          <span class="adr-tag">Security</span>
+          <span class="icon"><svg width="20" height="20"><use href="#i-lock"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">GitOps</span><span class="adr-tag">Security</span></div>
         </div>
         <div class="adr-card-title">MCP over direct API — credentials never enter Claude's context</div>
         <div class="adr-card-body">
@@ -517,14 +593,16 @@
           The tool surface is the operational allowlist — expanding capabilities requires an explicit code change, not a prompt edit.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0002-mcp-over-direct-api.md" target="_blank">ADR-0002 ↗</a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0002-mcp-over-direct-api.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0002
+          </a>
         </div>
       </div>
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="adr-tag">Policy-as-Code</span>
-          <span class="adr-tag">NGFW</span>
+          <span class="icon"><svg width="20" height="20"><use href="#i-shield"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Policy-as-Code</span><span class="adr-tag">NGFW</span></div>
         </div>
         <div class="adr-card-title">Zone topology-aware OPA validation — first-match semantics enforced at CI time</div>
         <div class="adr-card-body">
@@ -533,15 +611,19 @@
           Internet-to-database paths are structurally blocked, not just discouraged.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0008-zone-topology-aware-policy-validation.md" target="_blank">ADR-0008 ↗</a>
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0003-cicd-pipeline-design-and-policy-validation-toolchain.md" target="_blank">ADR-0003 ↗</a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0008-zone-topology-aware-policy-validation.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0008
+          </a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0003-cicd-pipeline-design-and-policy-validation-toolchain.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0003
+          </a>
         </div>
       </div>
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="adr-tag">Palo Alto SCM</span>
-          <span class="adr-tag">Schema</span>
+          <span class="icon"><svg width="20" height="20"><use href="#i-server"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Palo Alto SCM</span><span class="adr-tag">Schema</span></div>
         </div>
         <div class="adr-card-title">YAML schema field names taken verbatim from SCM API docs — no abstraction layer</div>
         <div class="adr-card-body">
@@ -550,15 +632,19 @@
           Rulebase ordering is a first-class schema concern, not an afterthought.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0007-declarative-firewall-configuration-yaml-schema.md" target="_blank">ADR-0007 ↗</a>
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0004-mcp-strata-cloud-manager-tool-interface-design.md" target="_blank">ADR-0004 ↗</a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0007-declarative-firewall-configuration-yaml-schema.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0007
+          </a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0004-mcp-strata-cloud-manager-tool-interface-design.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0004
+          </a>
         </div>
       </div>
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="adr-tag">Agentic AI</span>
-          <span class="adr-tag">GitHub Issues</span>
+          <span class="icon"><svg width="20" height="20"><use href="#i-cpu"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Agentic AI</span><span class="adr-tag">GitHub Issues</span></div>
         </div>
         <div class="adr-card-title">GitHub Issues as intake — full lifecycle in a single auditable artefact</div>
         <div class="adr-card-body">
@@ -567,15 +653,19 @@
           PDF attachments, Claude's analysis, and the deployment outcome — a complete SOC 2-aligned audit trail.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0009-github-issues-as-primary-firewall-change-request-interface.md" target="_blank">ADR-0009 ↗</a>
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0010-direct-commit-after-processing.md" target="_blank">ADR-0010 ↗</a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0009-github-issues-as-primary-firewall-change-request-interface.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0009
+          </a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0010-direct-commit-after-processing.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0010
+          </a>
         </div>
       </div>
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="adr-tag">Drift Detection</span>
-          <span class="adr-tag">GitOps</span>
+          <span class="icon"><svg width="20" height="20"><use href="#i-sync"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Drift Detection</span><span class="adr-tag">GitOps</span></div>
         </div>
         <div class="adr-card-title">Scheduled drift detection — Git state vs. live SCM state reconciled daily</div>
         <div class="adr-card-body">
@@ -584,14 +674,16 @@
           detected and reported as GitHub Issues before they cause policy drift or audit failures.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md" target="_blank">ADR-0011 ↗</a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0011-drift-detection-between-git-state-and-scm-live-state.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0011
+          </a>
         </div>
       </div>
 
       <div class="adr-card">
         <div class="adr-card-header">
-          <span class="adr-tag">Claude API</span>
-          <span class="adr-tag">Cost</span>
+          <span class="icon"><svg width="20" height="20"><use href="#i-bolt"/></svg></span>
+          <div class="adr-tags"><span class="adr-tag">Claude API</span><span class="adr-tag">Cost</span></div>
         </div>
         <div class="adr-card-title">Prompt caching on the agentic loop — system prompt cached across tool-use iterations</div>
         <div class="adr-card-body">
@@ -600,7 +692,9 @@
           for the largest static content block on every iteration.
         </div>
         <div class="adr-card-footer">
-          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0013-prompt-caching-for-orchestrator-agentic-loop.md" target="_blank">ADR-0013 ↗</a>
+          <a href="https://github.com/t11z/firepilot/blob/main/docs/adr/0013-prompt-caching-for-orchestrator-agentic-loop.md" target="_blank">
+            <svg width="14" height="14"><use href="#i-doc"/></svg> ADR-0013
+          </a>
         </div>
       </div>
 
@@ -611,41 +705,67 @@
 <!-- ── Tech stack ── -->
 <section class="section">
   <div class="wrap">
-    <div class="section-label">// stack</div>
+    <div class="section-label">
+      <span class="icon"><svg width="16" height="16"><use href="#i-cube"/></svg></span>
+      stack
+    </div>
     <h2>Technology stack</h2>
-
     <div class="stack-grid">
       <div class="stack-item">
-        <div class="stack-role">ORCHESTRATION</div>
-        <div class="stack-tech">Claude API</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-cpu"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">ORCHESTRATION</div>
+          <div class="stack-tech">Claude API</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">INTEGRATION</div>
-        <div class="stack-tech">MCP Protocol</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-bolt"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">INTEGRATION</div>
+          <div class="stack-tech">MCP Protocol</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">SERVERS</div>
-        <div class="stack-tech">Python 3.12+</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-code"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">SERVERS</div>
+          <div class="stack-tech">Python 3.12+</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">POLICY</div>
-        <div class="stack-tech">OPA / Rego</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-shield"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">POLICY</div>
+          <div class="stack-tech">OPA / Rego</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">CONFIG</div>
-        <div class="stack-tech">YAML</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-doc"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">CONFIG</div>
+          <div class="stack-tech">YAML</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">CI/CD</div>
-        <div class="stack-tech">GitHub Actions</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-settings"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">CI/CD</div>
+          <div class="stack-tech">GitHub Actions</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">FIREWALL API</div>
-        <div class="stack-tech">Palo Alto SCM</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-server"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">FIREWALL API</div>
+          <div class="stack-tech">Palo Alto SCM</div>
+        </div>
       </div>
       <div class="stack-item">
-        <div class="stack-role">DEMO</div>
-        <div class="stack-tech">Docker / Compose</div>
+        <span class="icon"><svg width="20" height="20"><use href="#i-cube"/></svg></span>
+        <div class="stack-text">
+          <div class="stack-role">DEMO</div>
+          <div class="stack-tech">Docker / Compose</div>
+        </div>
       </div>
     </div>
   </div>
@@ -654,14 +774,17 @@
 <!-- ── Demo ── -->
 <section class="section" id="demo">
   <div class="wrap">
-    <div class="section-label">// demo</div>
+    <div class="section-label">
+      <span class="icon"><svg width="16" height="16"><use href="#i-terminal"/></svg></span>
+      demo
+    </div>
     <h2>Run it locally — no credentials needed</h2>
-
     <div class="demo-card">
       <div class="demo-titlebar">
         <div class="dot-bar">
           <span class="r"></span><span class="y"></span><span class="g"></span>
         </div>
+        <span class="icon"><svg width="16" height="16"><use href="#i-terminal"/></svg></span>
         <span class="demo-file">bash</span>
       </div>
       <div class="demo-body">
@@ -700,9 +823,22 @@
     <div class="footer-inner">
       <span class="footer-note">FirePilot — architectural portfolio project. Not for production use.</span>
       <div class="footer-links">
-        <a href="https://github.com/t11z/firepilot" target="_blank">github</a>
-        <a href="https://github.com/t11z/firepilot/blob/main/docs/architecture.md" target="_blank">architecture</a>
-        <a href="https://github.com/t11z/firepilot/blob/main/docs/threat-model.md" target="_blank">threat model</a>
+        <a href="https://github.com/t11z/firepilot" target="_blank">
+          <span class="icon"><svg width="18" height="18"><use href="#i-github"/></svg></span>
+          github
+        </a>
+        <a href="https://www.linkedin.com/in/cybersec-tsp/" target="_blank">
+          <span class="icon"><svg width="18" height="18"><use href="#i-linkedin"/></svg></span>
+          linkedin
+        </a>
+        <a href="https://github.com/t11z/firepilot/blob/main/docs/architecture.md" target="_blank">
+          <span class="icon"><svg width="16" height="16"><use href="#i-map"/></svg></span>
+          architecture
+        </a>
+        <a href="https://github.com/t11z/firepilot/blob/main/docs/threat-model.md" target="_blank">
+          <span class="icon"><svg width="16" height="16"><use href="#i-bug"/></svg></span>
+          threat model
+        </a>
       </div>
     </div>
   </div>
