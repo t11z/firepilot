@@ -321,28 +321,35 @@ Call `create_change_request` with:
 
 Record the returned `change_request_id`. This is the `ticket_id` for all subsequent operations.
 
-**Step 7: Create the security rule.**
+**Step 7: Create security rules (iterate over all validated rules).**
 
-Call `create_security_rule` with:
-- `ticket_id`: the `change_request_id` from Step 6
-- All rule fields as confirmed by the user in Step 5
-- `tag`: must include the managed-rule tag from `firepilot.yaml`
-  (`rule_defaults.tag`)
+For each rule that passed validation in Steps 2–4, execute the following
+sub-steps in sequence. Do not stop after the first rule. Continue until
+every validated rule has been processed.
 
-Call `add_audit_comment` on the change request with event `"candidate_written"` and the SCM rule UUID from the response.
+1. Call `create_security_rule` with:
+   - `ticket_id`: the `change_request_id` from Step 6
+   - All rule fields as confirmed in Step 5
+   - `tag`: must include the managed-rule tag from `firepilot.yaml`
+     (`rule_defaults.tag`)
+2. Call `add_audit_comment` on the change request with event
+   `"candidate_written"` and the SCM rule UUID from the response.
+3. Call `write_config_file` with:
+   - `filename`: `{rule-name}.yaml`
+   - `file_type`: `"security_rule"`
+   - `content`: the complete ADR-0007-compliant YAML for this rule
+4. If `write_config_file` returns an error, log the error in your analysis
+   comment and skip this rule. Do not halt the entire run.
 
-After creating the rule in SCM candidate config, call `write_config_file` with:
-- `filename`: `{rule-name}.yaml`
-- `content`: the complete ADR-0007-compliant YAML for this rule
-- `file_type`: `"security_rule"`
-
-If `write_config_file` returns an error, log the error in your analysis comment
-and skip this rule. Do not halt the entire processing run for a single file
-write failure.
+After each rule: confirm internally that the write succeeded, then proceed
+to the next validated rule. Track how many rules have been written vs. how
+many were validated. Do not consider Step 7 complete until all validated
+rules are processed.
 
 **Step 7a: Write the rulebase manifest.**
 
-After all rule files are written, call `write_config_file` with:
+After ALL rule files from Step 7 are written (not after the first one),
+call `write_config_file` with:
 - `filename`: `_rulebase.yaml`
 - `content`: the rulebase manifest YAML with `schema_version: 1`, `folder` and
   `position` from `firepilot.yaml`, and `rule_order` listing all rules in the
