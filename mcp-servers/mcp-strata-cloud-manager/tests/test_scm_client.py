@@ -543,6 +543,39 @@ class TestAllReadEndpoints:
         called_url = client_with_valid_token._http.get.call_args.args[0]
         assert "/config/security/v1/security-rules" in called_url
 
+    async def test_list_security_rules_maps_position_to_rulebase(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """list_security_rules sends 'rulebase' query param, not 'position'."""
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(200, _EMPTY_LIST_RESPONSE)
+        )
+
+        await client_with_valid_token.list_security_rules(
+            "Shared", position="pre"
+        )
+
+        call_kwargs = client_with_valid_token._http.get.call_args
+        sent_params = call_kwargs.kwargs.get("params", {})
+        assert "rulebase" in sent_params
+        assert sent_params["rulebase"] == "pre"
+        assert "position" not in sent_params
+
+    async def test_list_security_rules_no_position_omits_rulebase(
+        self, client_with_valid_token: SCMClient
+    ) -> None:
+        """list_security_rules without position omits rulebase from query."""
+        client_with_valid_token._http.get = AsyncMock(
+            return_value=_make_http_response(200, _EMPTY_LIST_RESPONSE)
+        )
+
+        await client_with_valid_token.list_security_rules("Shared")
+
+        call_kwargs = client_with_valid_token._http.get.call_args
+        sent_params = call_kwargs.kwargs.get("params", {})
+        assert "rulebase" not in sent_params
+        assert "position" not in sent_params
+
     async def test_list_addresses_endpoint(
         self, client_with_valid_token: SCMClient
     ) -> None:

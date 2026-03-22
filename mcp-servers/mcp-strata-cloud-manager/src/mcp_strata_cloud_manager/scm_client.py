@@ -475,6 +475,10 @@ class SCMClient:
             SCMAuthError: On token acquisition failure.
             SCMAPIError: On HTTP error or network failure.
         """
+        # SCM API uses "rulebase" query param; our tool interface uses "position".
+        position = params.pop("position", None)
+        if position is not None:
+            params["rulebase"] = position
         return await self._get(
             "list_security_rules",
             "/config/security/v1/security-rules",
